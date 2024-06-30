@@ -1,5 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/perplexity-go)](https://goreportcard.com/report/github.com/sgaunet/perplexity-go)
 [![Maintainability](https://api.codeclimate.com/v1/badges/f01b49c0008ff9ad59cb/maintainability)](https://codeclimate.com/github/sgaunet/perplexity-go/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/f01b49c0008ff9ad59cb/test_coverage)](https://codeclimate.com/github/sgaunet/perplexity-go/test_coverage)
 
 # Perplexity API Go Client
 
