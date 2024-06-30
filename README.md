@@ -1,3 +1,6 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/perplexity-go)](https://goreportcard.com/report/github.com/sgaunet/perplexity-go)
+[![Maintainability](https://api.codeclimate.com/v1/badges/f01b49c0008ff9ad59cb/maintainability)](https://codeclimate.com/github/sgaunet/perplexity-go/maintainability)
+
 # Perplexity API Go Client
 
 A lightweight Go library for interacting with the [Perplexity AI API](https://docs.perplexity.ai/reference/post_chat_completions), focusing on the chat completion endpoint.
