@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/sgaunet/perplexity-go"
 	"github.com/stretchr/testify/assert"
@@ -176,5 +177,44 @@ func TestString(t *testing.T) {
 			},
 		}
 		assert.Equal(t, "{\n  \"id\": \"id\",\n  \"model\": \"model\",\n  \"created\": 1,\n  \"usage\": {\n    \"prompt_tokens\": 1,\n    \"completion_tokens\": 1,\n    \"total_tokens\": 1\n  },\n  \"object\": \"object\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"finish_reason\": \"\",\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"hello\"\n      },\n      \"delta\": {\n        \"role\": \"\",\n        \"content\": \"\"\n      }\n    }\n  ]\n}", content.String())
+	})
+}
+
+func TestHTTPTimeout(t *testing.T) {
+	apiKey := "apikey"
+
+	t.Run("Check default timeout", func(t *testing.T) {
+		r := perplexity.NewClient(apiKey)
+		assert.Equal(t, perplexity.DefautTimeout, r.GetHTTPTimeout())
+		r.SetHTTPTimeout(1 * time.Second)
+		assert.Equal(t, 1*time.Second, r.GetHTTPTimeout())
+	})
+
+	t.Run("Check that request take the timeout in account", func(t *testing.T) {
+		ts := httptest.NewTLSServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(2 * time.Second)
+				w.Header().Add("Content-Type", "application/json")
+				fmt.Fprintln(w, "{}")
+			}))
+		defer ts.Close()
+
+		client := ts.Client()
+		r := perplexity.NewClient(apiKey)
+		r.SetHTTPClient(client)
+		r.SetEndpoint(ts.URL)
+		r.SetHTTPTimeout(300 * time.Millisecond)
+
+		startTime := time.Now()
+		res, err := r.CreateCompletion([]perplexity.Message{
+			{
+				Role:    "user",
+				Content: "What's the capital of France?",
+			},
+		})
+		assert.LessOrEqual(t, time.Since(startTime).Nanoseconds(), int64(350_000_000)) // 350ms
+		fmt.Println(time.Since(startTime).Nanoseconds())
+		assert.NotNil(t, err) // timeout
+		assert.Nil(t, res)
 	})
 }

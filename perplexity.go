@@ -12,6 +12,7 @@ import (
 )
 
 const DefaultEndpoint = "https://api.perplexity.ai/chat/completions"
+const DefautTimeout = 10 * time.Second
 
 // Message is a message object for the Perplexity API.
 type Message struct {
@@ -52,10 +53,11 @@ type CompletionResponse struct {
 
 // Client is a client for the Perplexity API.
 type Client struct {
-	endpoint   string
-	apiKey     string
-	model      string
-	httpClient *http.Client
+	endpoint    string
+	apiKey      string
+	model       string
+	httpClient  *http.Client
+	httpTimeout time.Duration
 }
 
 // NewClient creates a new Perplexity API client.
@@ -63,9 +65,10 @@ type Client struct {
 // The default model is llama-3-sonar-small-32k-online.
 func NewClient(apiKey string) *Client {
 	s := &Client{
-		apiKey:     apiKey,
-		endpoint:   DefaultEndpoint,
-		httpClient: &http.Client{},
+		apiKey:      apiKey,
+		endpoint:    DefaultEndpoint,
+		httpClient:  &http.Client{},
+		httpTimeout: DefautTimeout,
 	}
 	s.SetModuleLlama3SonarSmall32kOnline()
 	return s
@@ -126,6 +129,16 @@ func (s *Client) SetHTTPClient(httpClient *http.Client) {
 	s.httpClient = httpClient
 }
 
+// SetHTTPTimeout sets the HTTP timeout.
+func (s *Client) SetHTTPTimeout(timeout time.Duration) {
+	s.httpTimeout = timeout
+}
+
+// GetHTTPTimeout sets the HTTP timeout.
+func (s *Client) GetHTTPTimeout() time.Duration {
+	return s.httpTimeout
+}
+
 // CreateCompletion sends simple text to the Perplexity API and retrieve the response.
 func (s *Client) CreateCompletion(messages []Message) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
@@ -140,7 +153,7 @@ func (s *Client) CreateCompletion(messages []Message) (*CompletionResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(s.httpTimeout))
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
