@@ -46,7 +46,7 @@ func TestGetCompletion(t *testing.T) {
 				defer r.Body.Close()
 				b, err := io.ReadAll(r.Body)
 				assert.Nil(t, err)
-				assert.Equal(t, string(b), `{"messages":[{"role":"user","content":"What's the capital of France?"}],"model":"llama-3-sonar-small-32k-online"}`)
+				assert.Equal(t, string(b), `{"messages":[{"role":"user","content":"What's the capital of France?"}],"model":"llama-3.1-sonar-small-128k-online"}`)
 				w.Header().Add("Content-Type", "application/json")
 				fmt.Fprintln(w, "{}")
 			}))
@@ -78,21 +78,21 @@ func TestGetCompletion(t *testing.T) {
 
 func TestSetModels(t *testing.T) {
 	r := perplexity.NewClient("apikey")
-	t.Run("set model llama-3-sonar-small-32k-chat", func(t *testing.T) {
-		r.SetModuleLlama3SonarSmall32kChat()
-		assert.Equal(t, r.GetModel(), "llama-3-sonar-small-32k-chat")
+	t.Run("set model llama-3.1-sonar-small-128k-chat", func(t *testing.T) {
+		r.SetModuleLlama31SonarSmall128kChat()
+		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-small-128k-chat")
 	})
-	t.Run("set model llama-3-sonar-small-32k-online", func(t *testing.T) {
-		r.SetModuleLlama3SonarSmall32kOnline()
-		assert.Equal(t, r.GetModel(), "llama-3-sonar-small-32k-online")
+	t.Run("set model llama-3.1-sonar-large-128k-chat", func(t *testing.T) {
+		r.SetModuleLlama31SonarLarge128kChat()
+		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-large-128k-chat")
 	})
-	t.Run("set model llama-3-sonar-large-32k-chat", func(t *testing.T) {
-		r.SetModuleLlama3SonarLarge32kChat()
-		assert.Equal(t, r.GetModel(), "llama-3-sonar-large-32k-chat")
+	t.Run("set model llama-3.1-sonar-small-128k-online", func(t *testing.T) {
+		r.SetModuleLlama31SonarSmall128kOnline()
+		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-small-128k-online")
 	})
-	t.Run("set model llama-3-sonar-large-32k-online", func(t *testing.T) {
-		r.SetModuleLlama3SonarLarge32kOnline()
-		assert.Equal(t, r.GetModel(), "llama-3-sonar-large-32k-online")
+	t.Run("set model llama-3.1-sonar-large-128k-online", func(t *testing.T) {
+		r.SetModuleLlama31SonarLarge128kOnline()
+		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-large-128k-online")
 	})
 	t.Run("set model llama-3-8b-instruct", func(t *testing.T) {
 		r.SetModuleLlama38bInstruct()
