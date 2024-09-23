@@ -105,18 +105,13 @@ func (s *Client) SetModuleLlama31SonarLarge128kOnline() {
 }
 
 // SetModuleLlama3SonarLarge32kInstruct sets the model to llama-3-sonar-large-32k-instruct.
-func (s *Client) SetModuleLlama38bInstruct() {
-	s.setModel("llama-3-8b-instruct")
+func (s *Client) SetModuleLlama318bInstruct() {
+	s.setModel("llama-3.1-8b-instruct")
 }
 
 // SetModuleLlama370bInstruct sets the model to llama-3-70b-instruct.
-func (s *Client) SetModuleLlama370bInstruct() {
-	s.setModel("llama-3-70b-instruct")
-}
-
-// SetModuleMixtral8x7bInstruct sets the model to mixtral-8x7b-instruct.
-func (s *Client) SetModuleMixtral8x7bInstruct() {
-	s.setModel("mixtral-8x7b-instruct")
+func (s *Client) SetModuleLlama3170bInstruct() {
+	s.setModel("llama-3.1-70b-instruct")
 }
 
 // SetEndpoint sets the API endpoint.
