@@ -114,11 +114,6 @@ func (s *Client) SetModuleLlama3170bInstruct() {
 	s.setModel("llama-3.1-70b-instruct")
 }
 
-// SetModuleMixtral8x7bInstruct sets the model to mixtral-8x7b-instruct.
-func (s *Client) SetModuleMixtral8x7bInstruct() {
-	s.setModel("mixtral-8x7b-instruct")
-}
-
 // SetEndpoint sets the API endpoint.
 func (s *Client) SetEndpoint(endpoint string) {
 	s.endpoint = endpoint

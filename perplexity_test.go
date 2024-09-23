@@ -102,10 +102,6 @@ func TestSetModels(t *testing.T) {
 		r.SetModuleLlama3170bInstruct()
 		assert.Equal(t, r.GetModel(), "llama-3.1-70b-instruct")
 	})
-	t.Run("set model mixtral-8x7b-instruct", func(t *testing.T) {
-		r.SetModuleMixtral8x7bInstruct()
-		assert.Equal(t, r.GetModel(), "mixtral-8x7b-instruct")
-	})
 }
 
 func TestGetLastContent(t *testing.T) {
