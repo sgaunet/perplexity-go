@@ -94,13 +94,13 @@ func TestSetModels(t *testing.T) {
 		r.SetModuleLlama31SonarLarge128kOnline()
 		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-large-128k-online")
 	})
-	t.Run("set model llama-3-8b-instruct", func(t *testing.T) {
-		r.SetModuleLlama38bInstruct()
-		assert.Equal(t, r.GetModel(), "llama-3-8b-instruct")
+	t.Run("set model llama-3.1-8b-instruct", func(t *testing.T) {
+		r.SetModuleLlama318bInstruct()
+		assert.Equal(t, r.GetModel(), "llama-3.1-8b-instruct")
 	})
-	t.Run("set model llama-3-70b-instruct", func(t *testing.T) {
-		r.SetModuleLlama370bInstruct()
-		assert.Equal(t, r.GetModel(), "llama-3-70b-instruct")
+	t.Run("set model llama-3.1-70b-instruct", func(t *testing.T) {
+		r.SetModuleLlama3170bInstruct()
+		assert.Equal(t, r.GetModel(), "llama-3.1-70b-instruct")
 	})
 	t.Run("set model mixtral-8x7b-instruct", func(t *testing.T) {
 		r.SetModuleMixtral8x7bInstruct()
