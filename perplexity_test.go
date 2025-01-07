@@ -78,14 +78,6 @@ func TestGetCompletion(t *testing.T) {
 
 func TestSetModels(t *testing.T) {
 	r := perplexity.NewClient("apikey")
-	t.Run("set model llama-3.1-sonar-small-128k-chat", func(t *testing.T) {
-		r.SetModuleLlama31SonarSmall128kChat()
-		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-small-128k-chat")
-	})
-	t.Run("set model llama-3.1-sonar-large-128k-chat", func(t *testing.T) {
-		r.SetModuleLlama31SonarLarge128kChat()
-		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-large-128k-chat")
-	})
 	t.Run("set model llama-3.1-sonar-small-128k-online", func(t *testing.T) {
 		r.SetModuleLlama31SonarSmall128kOnline()
 		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-small-128k-online")
@@ -93,14 +85,6 @@ func TestSetModels(t *testing.T) {
 	t.Run("set model llama-3.1-sonar-large-128k-online", func(t *testing.T) {
 		r.SetModuleLlama31SonarLarge128kOnline()
 		assert.Equal(t, r.GetModel(), "llama-3.1-sonar-large-128k-online")
-	})
-	t.Run("set model llama-3.1-8b-instruct", func(t *testing.T) {
-		r.SetModuleLlama318bInstruct()
-		assert.Equal(t, r.GetModel(), "llama-3.1-8b-instruct")
-	})
-	t.Run("set model llama-3.1-70b-instruct", func(t *testing.T) {
-		r.SetModuleLlama3170bInstruct()
-		assert.Equal(t, r.GetModel(), "llama-3.1-70b-instruct")
 	})
 }
 
