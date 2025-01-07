@@ -84,16 +84,6 @@ func (s *Client) GetModel() string {
 	return s.model
 }
 
-// SetModuleLlama31SonarSmall128kChat sets the model to llama-3.1-sonar-small-128k-chat.
-func (s *Client) SetModuleLlama31SonarSmall128kChat() {
-	s.setModel("llama-3.1-sonar-small-128k-chat")
-}
-
-// SetModuleLlama31SonarLarge128kChat sets the model to llama-3.1-sonar-large-128k-chat.
-func (s *Client) SetModuleLlama31SonarLarge128kChat() {
-	s.setModel("llama-3.1-sonar-large-128k-chat")
-}
-
 // SetModuleLlama31SonarSmall128kOnline sets the model to llama-3.1-sonar-small-128k-online.
 func (s *Client) SetModuleLlama31SonarSmall128kOnline() {
 	s.setModel("llama-3.1-sonar-small-128k-online")
@@ -104,14 +94,9 @@ func (s *Client) SetModuleLlama31SonarLarge128kOnline() {
 	s.setModel("llama-3.1-sonar-large-128k-online")
 }
 
-// SetModuleLlama3SonarLarge32kInstruct sets the model to llama-3-sonar-large-32k-instruct.
-func (s *Client) SetModuleLlama318bInstruct() {
-	s.setModel("llama-3.1-8b-instruct")
-}
-
-// SetModuleLlama370bInstruct sets the model to llama-3-70b-instruct.
-func (s *Client) SetModuleLlama3170bInstruct() {
-	s.setModel("llama-3.1-70b-instruct")
+// SetModuleLlama31SonarHuge128kChat sets the model to llama-3.1-sonar-huge-128k-online.
+func (s *Client) SetModuleLlama31SonarHuge128kOnline() {
+	s.setModel("llama-3.1-sonar-huge-128k-online")
 }
 
 // SetEndpoint sets the API endpoint.
