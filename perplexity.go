@@ -22,8 +22,19 @@ type Message struct {
 
 // CompletionRequest is a request object for the Perplexity API.
 type CompletionRequest struct {
-	Messages []Message `json:"messages"`
-	Model    string    `json:"model"`
+	Messages               []Message `json:"messages"`
+	Model                  string    `json:"model"`
+	FrequencyPenalty       float64   `json:"frequency_penalty,omitempty"`
+	MaxTokens              int       `json:"max_tokens,omitempty"`
+	PresencePenalty        float64   `json:"presence_penalty,omitempty"`
+	ReturnImages           bool      `json:"return_images,omitempty"`
+	ReturnRelatedQuestions bool      `json:"return_related_questions,omitempty"`
+	SearchDomainFilter     []any     `json:"search_domain_filter,omitempty"`
+	SearchRecencyFilter    string    `json:"search_recency_filter,omitempty"`
+	Stream                 bool      `json:"stream,omitempty"`
+	Temperature            float64   `json:"temperature,omitempty"`
+	TopK                   int       `json:"top_k,omitempty"`
+	TopP                   float64   `json:"top_p,omitempty"`
 }
 
 // Usage is a usage object for the Perplexity API.
@@ -43,12 +54,13 @@ type Choice struct {
 
 // CompletionResponse is a response object for the Perplexity API.
 type CompletionResponse struct {
-	ID      string   `json:"id"`
-	Model   string   `json:"model"`
-	Created int      `json:"created"`
-	Usage   Usage    `json:"usage"`
-	Object  string   `json:"object"`
-	Choices []Choice `json:"choices"`
+	ID        string   `json:"id"`
+	Model     string   `json:"model"`
+	Object    string   `json:"object"`
+	Created   int      `json:"created"`
+	Citations []any    `json:"citations"`
+	Choices   []Choice `json:"choices"`
+	Usage     Usage    `json:"usage"`
 }
 
 // Client is a client for the Perplexity API.
@@ -120,16 +132,12 @@ func (s *Client) GetHTTPTimeout() time.Duration {
 }
 
 // CreateCompletion sends simple text to the Perplexity API and retrieve the response.
-func (s *Client) CreateCompletion(messages []Message) (*CompletionResponse, error) {
+func (s *Client) CreateCompletion(request CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
-	if len(messages) == 0 {
+	if len(request.Messages) == 0 {
 		return nil, fmt.Errorf("messages must not be empty")
 	}
-	reqBody := CompletionRequest{
-		Messages: messages,
-		Model:    s.model,
-	}
-	requestBody, err := json.Marshal(reqBody)
+	requestBody, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
