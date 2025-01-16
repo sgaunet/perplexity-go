@@ -18,7 +18,7 @@ Features
 To install the library, use go get:
 
 ```bash
-go get github.com/sgaunet/perplexity-go
+go get github.com/sgaunet/perplexity-go/v2
 ```
 
 ## Usage
@@ -29,26 +29,34 @@ Here's a quick example of how to use the library:
 package main
 
 import (
-	"fmt"
-	"os"
+  "fmt"
+  "os"
 
-	"github.com/sgaunet/perplexity-go"
+  "github.com/sgaunet/perplexity-go/v2"
 )
 
 func main() {
-	client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
-	res, err := client.CreateCompletion([]perplexity.Message{
-		{
-			Role:    "user",
-			Content: "What's the capital of France?",
-		},
-	})
+client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
+  msg := []perplexity.Message{
+    {
+      Role:    "user",
+      Content: "Wat's the capital of France?",
+    },
+  }
+  req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithReturnImages(true))
+  err := req.Validate()
+  if err != nil {
+    fmt.Printf("Error: %v\n", err)
+    os.Exit(1)
+  }
 
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(res.GetLastContent())
+  res, err := client.SendCompletionRequest(req)
+  if err != nil {
+    fmt.Printf("Error: %v\n", err)
+    os.Exit(1)
+  }
+
+  fmt.Println(res.GetLastContent())
 }
 ```
 
