@@ -1,43 +1,48 @@
-name: build
+name: Generate coverage badges
 on:
   push:
-    branches:
-      - main
-    tags:
-      - '!*' # Do not execute on tags
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
-  # test:
-  #   strategy:
-  #     matrix:
-  #       platform: [ ubuntu-latest, macOS-latest ]
-  #       golang: [ '1.21.6', '1.20.1' ]
-  #   name: test/golang ${{ matrix.golang }}/${{ matrix.platform }}
-  #   runs-on: ${{ matrix.platform }}
-  #   steps:
-  #   - uses: actions/checkout@master
-  #   - uses: actions/setup-go@v5
-  #     with:
-  #       go-version: ${{ matrix.golang }}
-  #   - run: go version
-  #   - run: go test ./...
-  coverage:
-    # needs: [ test ]
-    name: coverage
+  generate-badges:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/setup-go@v5
-      with:
-        go-version: 1.22.4
-    # Install test-reporter
-    - run:  curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-    - run:  chmod +x ./cc-test-reporter
-      # before build step
-    - run: ./cc-test-reporter before-build
-      # RUN TEST HERE
-    - run: go test . -coverprofile c.out
-      # after build step
-    - run: ./cc-test-reporter after-build --prefix=github.com/sgaunet/perplexity-go
-      env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+      - uses: actions/checkout@v4
+
+      # setup go environment
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+  
+      - name: coverage
+        id: coverage
+        run: |
+          go test -coverpkg=./... -coverprofile=profile.cov ./...
+          sed -i '/cmd/d' profile.cov    # remove cmd package from coverage
+          total=$(go tool cover -func profile.cov | grep '^total:' | awk '{print $3}' | sed "s/%//")
+          rm profile.cov
+          echo "COVERAGE_VALUE=${total}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          repository: sgaunet/gh-action-test
+          path: gh-action-test
+          ref: main
+          fetch-depth: 1
+
+      - name: Generate coverage badge
+        id: coverage-badge
+        uses: ./gh-action-test/.github/actions/gh-action-coverage
+        with:
+          limit-coverage: "70"
+          badge-label: "coverage"
+          badge-filename: "coverage-badge.svg"
+          badge-value: "${COVERAGE_VALUE}"
+
+      - name: Print url of badge
+        run: |
+          echo "Badge URL: ${{ steps.coverage-badge.outputs.badge-url }}"
