@@ -1,7 +1,7 @@
 name: Generate coverage badges
 on:
   push:
-    branches: [fix/ci]
+    branches: [main]
 
 permissions:
   contents: write
