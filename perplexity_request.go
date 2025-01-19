@@ -21,12 +21,6 @@ const (
 	MaxLengthOfSearchDomainFilter = 3
 )
 
-// Message is a message object for the Perplexity API.
-type Message struct {
-	Role    string `json:"role" validate:"required,oneof=system user agent"`
-	Content string `json:"content"`
-}
-
 // CompletionRequest is a request object for the Perplexity API.
 // https://docs.perplexity.ai/api-reference/chat-completions
 type CompletionRequest struct {
@@ -115,6 +109,7 @@ func WithMessages(msg []Message) CompletionRequestOption {
 }
 
 // WithModel sets the model option (overrides the default model).
+// Prefer the use of WithModelLlama31SonarSmall128kOnline, WithModelLlama31SonarLarge128kOnline, or WithModelLlama31SonarHuge128kOnline.
 func WithModel(model string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Model = model
