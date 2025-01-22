@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: sgaunet/gh-action-badge
-          path: gh-action-test
+          path: gh-action-badge
           ref: main
           fetch-depth: 1
 
