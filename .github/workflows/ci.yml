@@ -29,14 +29,14 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: sgaunet/gh-action-test
+          repository: sgaunet/gh-action-badge
           path: gh-action-test
           ref: main
           fetch-depth: 1
 
       - name: Generate coverage badge
         id: coverage-badge
-        uses: ./gh-action-test/.github/actions/gh-action-coverage
+        uses: ./gh-action-badge/.github/actions/gh-action-coverage
         with:
           limit-coverage: "70"
           badge-label: "coverage"
