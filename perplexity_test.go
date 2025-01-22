@@ -48,7 +48,7 @@ func TestGetCompletion(t *testing.T) {
 				defer r.Body.Close()
 				b, err := io.ReadAll(r.Body)
 				assert.Nil(t, err)
-				assert.Equal(t, string(b), `{"messages":[{"role":"user","content":"What's the capital of France?"}],"model":"llama-3.1-sonar-small-128k-online","max_tokens":0,"temperature":0.2,"top_p":0.9,"search_domain_filter":null,"return_images":false,"return_related_questions":false,"search_recency_filter":"","top_k":0,"stream":false,"presence_penalty":0,"frequency_penalty":1}`)
+				assert.Equal(t, string(b), `{"messages":[{"role":"user","content":"What's the capital of France?"}],"model":"sonar","max_tokens":0,"temperature":0.2,"top_p":0.9,"search_domain_filter":null,"return_images":false,"return_related_questions":false,"search_recency_filter":"","top_k":0,"stream":false,"presence_penalty":0,"frequency_penalty":1}`)
 				w.Header().Add("Content-Type", "application/json")
 				fmt.Fprintln(w, "{}")
 			}))

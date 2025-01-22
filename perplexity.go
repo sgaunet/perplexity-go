@@ -16,10 +16,9 @@ const DefaultEndpoint = "https://api.perplexity.ai/chat/completions"
 // DefautTimeout is the default timeout for the HTTP client.
 const DefautTimeout = 10 * time.Second
 
-// Llama31SonarSmall128kOnline is the default model for the Perplexity API.
-const Llama31SonarSmall128kOnline = "llama-3.1-sonar-small-128k-online"
-const Llama31SonarLarge128kOnline = "llama-3.1-sonar-large-128k-online"
-const Llama31SonarHuge128kOnline = "llama-3.1-sonar-huge-128k-online"
+// DefaultModel is the default model for the Perplexity API.
+const DefaultModel = "sonar"
+const ProModel = "sonar-pro"
 
 // Client is a client for the Perplexity API.
 type Client struct {
