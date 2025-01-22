@@ -10,7 +10,6 @@ var ErrSearchDomainFilter = errors.New("search domain filter must be less than o
 var ErrSearchRecencyFilter = errors.New("search recency filter is incompatible with images")
 
 const (
-	DefaultModel            = Llama31SonarSmall128kOnline
 	DefaultTemperature      = 0.2
 	DefaultTopP             = 0.9
 	DefaultTopK             = 0
@@ -27,7 +26,7 @@ type CompletionRequest struct {
 	Messages []Message `json:"messages" validate:"required,dive"`
 	// Model: name of the model that will complete your prompt
 	// supported model: https://docs.perplexity.ai/guides/model-cards
-	Model string `json:"model" validate:"required,oneof=llama-3.1-sonar-small-128k-online llama-3.1-sonar-large-128k-online llama-3.1-sonar-huge-128k-online"`
+	Model string `json:"model" validate:"required,oneof=sonar sonar-pro llama-3.1-sonar-huge-128k-online"`
 	// MaxTokens: The maximum number of completion tokens returned by the API.
 	// The total number of tokens requested in max_tokens plus the number of
 	// prompt tokens sent in messages must not exceed the context window token limit of model requested.
@@ -109,31 +108,24 @@ func WithMessages(msg []Message) CompletionRequestOption {
 }
 
 // WithModel sets the model option (overrides the default model).
-// Prefer the use of WithModelLlama31SonarSmall128kOnline, WithModelLlama31SonarLarge128kOnline, or WithModelLlama31SonarHuge128kOnline.
+// Prefer the use of WithModelDefaultModel, WithModelProModel, or WithModelHugeModel.
 func WithModel(model string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Model = model
 	}
 }
 
-// WithModelLlama31SonarSmall128kOnline sets the model to llama-3.1-sonar-small-128k-online.
-func WithModelLlama31SonarSmall128kOnline() CompletionRequestOption {
+// WithModelDefaultModel sets the model to sonar.
+func WithDefaultModel() CompletionRequestOption {
 	return func(r *CompletionRequest) {
-		r.Model = Llama31SonarSmall128kOnline
+		r.Model = DefaultModel
 	}
 }
 
-// WithModelLlama31SonarLarge128kOnline sets the model to llama-3.1-sonar-large-128k-online.
-func WithModelLlama31SonarLarge128kOnline() CompletionRequestOption {
+// WithModelProModel sets the model to sonar-pro.
+func WithProModel() CompletionRequestOption {
 	return func(r *CompletionRequest) {
-		r.Model = Llama31SonarLarge128kOnline
-	}
-}
-
-// WithModelLlama31SonarHuge128kOnline sets the model to llama-3.1-sonar-huge-128k-online.
-func WithModelLlama31SonarHuge128kOnline() CompletionRequestOption {
-	return func(r *CompletionRequest) {
-		r.Model = Llama31SonarHuge128kOnline
+		r.Model = ProModel
 	}
 }
 

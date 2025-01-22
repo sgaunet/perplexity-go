@@ -22,21 +22,17 @@ func TestWithMessages(t *testing.T) {
 
 func TestWithModel(t *testing.T) {
 	t.Run("creates a new CompletionRequest with model", func(t *testing.T) {
-		model := "llama-3.1-sonar-small-128k-online"
+		model := "sonar"
 		req := perplexity.NewCompletionRequest(perplexity.WithModel(model))
 		assert.Equal(t, req.Model, model)
 	})
-	t.Run("Test WithModelLlama31SonarSmall128kOnline", func(t *testing.T) {
-		req := perplexity.NewCompletionRequest(perplexity.WithModelLlama31SonarSmall128kOnline())
-		assert.Equal(t, perplexity.Llama31SonarSmall128kOnline, req.Model)
+	t.Run("Test WithDefaultModel", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithDefaultModel())
+		assert.Equal(t, perplexity.DefaultModel, req.Model)
 	})
-	t.Run("Test WithModelLlama31SonarLarge128kOnline", func(t *testing.T) {
-		req := perplexity.NewCompletionRequest(perplexity.WithModelLlama31SonarLarge128kOnline())
-		assert.Equal(t, perplexity.Llama31SonarLarge128kOnline, req.Model)
-	})
-	t.Run("Test WithModelLlama31SonarHuge128kOnline", func(t *testing.T) {
-		req := perplexity.NewCompletionRequest(perplexity.WithModelLlama31SonarHuge128kOnline())
-		assert.Equal(t, perplexity.Llama31SonarHuge128kOnline, req.Model)
+	t.Run("Test WithProModel", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithProModel())
+		assert.Equal(t, perplexity.ProModel, req.Model)
 	})
 }
 
@@ -117,16 +113,16 @@ func TestValidate(t *testing.T) {
 
 	f("returns error if no message to send to the API", false)
 	f("returns error if model is empty", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(""))
-	f("returns error if MaxTokens is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithMaxTokens(-1))
-	f("returns error if Temperature is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTemperature(-1))
-	f("returns error if TopP is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTopP(-1))
-	f("returns error if TopK is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTopK(-1))
-	f("returns error if TopK is gt 2048", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTopK(2049))
-	f("returns error if Temperature is gt 2", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTemperature(2.1))
-	f("returns error if TopP is gt 1", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithTopP(1.1))
-	f("returns error if SearchDomainFilter contains more than 3 elements", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2", "filter3", "filter4"}))
-	f("returns error return_images and searchRecencyFilter are set", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnImages(true), perplexity.WithReturnRelatedQuestions(true), perplexity.WithSearchRecencyFilter("filter"), perplexity.WithTopK(10))
-	f("returns no error", true, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("llama-3.1-sonar-small-128k-online"), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnRelatedQuestions(true), perplexity.WithTopK(10))
+	f("returns error if MaxTokens is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithMaxTokens(-1))
+	f("returns error if Temperature is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTemperature(-1))
+	f("returns error if TopP is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTopP(-1))
+	f("returns error if TopK is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTopK(-1))
+	f("returns error if TopK is gt 2048", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTopK(2049))
+	f("returns error if Temperature is gt 2", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTemperature(2.1))
+	f("returns error if TopP is gt 1", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithTopP(1.1))
+	f("returns error if SearchDomainFilter contains more than 3 elements", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2", "filter3", "filter4"}))
+	f("returns error return_images and searchRecencyFilter are set", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnImages(true), perplexity.WithReturnRelatedQuestions(true), perplexity.WithSearchRecencyFilter("filter"), perplexity.WithTopK(10))
+	f("returns no error", true, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel("sonar"), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnRelatedQuestions(true), perplexity.WithTopK(10))
 }
 
 func TestValidateSearchRecencyFilter(t *testing.T) {
