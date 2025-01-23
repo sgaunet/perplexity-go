@@ -41,7 +41,7 @@ func (r *CompletionResponse) String() string {
 	}
 	b, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
-		return ""
+		return err.Error()
 	}
 	return string(b)
 }
