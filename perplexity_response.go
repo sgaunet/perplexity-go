@@ -22,12 +22,13 @@ type Choice struct {
 
 // CompletionResponse is a response object for the Perplexity API.
 type CompletionResponse struct {
-	ID      string   `json:"id"`
-	Model   string   `json:"model"`
-	Created int      `json:"created"`
-	Usage   Usage    `json:"usage"`
-	Object  string   `json:"object"`
-	Choices []Choice `json:"choices"`
+	ID        string    `json:"id"`
+	Model     string    `json:"model"`
+	Created   int       `json:"created"`
+	Usage     Usage     `json:"usage"`
+	Object    string    `json:"object"`
+	Choices   []Choice  `json:"choices"`
+	Citations *[]string `json:"citations,omitempty"`
 }
 
 // String returns a string representation of the CompletionResponse.
@@ -40,7 +41,7 @@ func (r *CompletionResponse) String() string {
 	}
 	b, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
-		return err.Error()
+		return ""
 	}
 	return string(b)
 }
@@ -51,4 +52,12 @@ func (r *CompletionResponse) GetLastContent() string {
 		return ""
 	}
 	return r.Choices[len(r.Choices)-1].Message.Content
+}
+
+// GetCitations returns the citations of the completion response.
+func (r *CompletionResponse) GetCitations() []string {
+	if r.Citations == nil {
+		return []string{}
+	}
+	return *r.Citations
 }
