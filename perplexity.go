@@ -2,7 +2,6 @@ package perplexity
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,10 +21,9 @@ const ProModel = "sonar-pro"
 
 // Client is a client for the Perplexity API.
 type Client struct {
-	endpoint    string
-	apiKey      string
-	httpClient  *http.Client
-	httpTimeout time.Duration
+	endpoint   string
+	apiKey     string
+	httpClient *http.Client
 }
 
 // NewClient creates a new Perplexity API client.
@@ -33,10 +31,11 @@ type Client struct {
 // The default model is llama-3-sonar-small-32k-online.
 func NewClient(apiKey string) *Client {
 	s := &Client{
-		apiKey:      apiKey,
-		endpoint:    DefaultEndpoint,
-		httpClient:  &http.Client{},
-		httpTimeout: DefautTimeout,
+		apiKey:   apiKey,
+		endpoint: DefaultEndpoint,
+		httpClient: &http.Client{
+			Timeout: DefautTimeout,
+		},
 	}
 	return s
 }
@@ -53,12 +52,12 @@ func (s *Client) SetHTTPClient(httpClient *http.Client) {
 
 // SetHTTPTimeout sets the HTTP timeout.
 func (s *Client) SetHTTPTimeout(timeout time.Duration) {
-	s.httpTimeout = timeout
+	s.httpClient.Timeout = timeout
 }
 
 // GetHTTPTimeout sets the HTTP timeout.
 func (s *Client) GetHTTPTimeout() time.Duration {
-	return s.httpTimeout
+	return s.httpClient.Timeout
 }
 
 // SendCompletionRequest sends a completion request to the Perplexity API.
@@ -71,9 +70,7 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(s.httpTimeout))
-	defer cancel()
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(requestBody))
+	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
