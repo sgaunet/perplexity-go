@@ -78,3 +78,24 @@ func TestString(t *testing.T) {
 		assert.Equal(t, "{\n  \"id\": \"id\",\n  \"model\": \"model\",\n  \"created\": 1,\n  \"usage\": {\n    \"prompt_tokens\": 1,\n    \"completion_tokens\": 1,\n    \"total_tokens\": 1\n  },\n  \"object\": \"object\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"finish_reason\": \"\",\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"hello\"\n      },\n      \"delta\": {\n        \"role\": \"\",\n        \"content\": \"\"\n      }\n    }\n  ]\n}", content.String())
 	})
 }
+
+func TestGetCitations(t *testing.T) {
+	t.Run("empty response returns empty citations", func(t *testing.T) {
+		content := perplexity.CompletionResponse{}
+		assert.Equal(t, content.GetCitations(), []string{})
+	})
+
+	t.Run("nil citations returns empty citations", func(t *testing.T) {
+		content := perplexity.CompletionResponse{
+			Citations: nil,
+		}
+		assert.Equal(t, content.GetCitations(), []string{})
+	})
+
+	t.Run("case with a real citations", func(t *testing.T) {
+		content := perplexity.CompletionResponse{
+			Citations: &[]string{"citation1", "citation2"},
+		}
+		assert.Equal(t, content.GetCitations(), []string{"citation1", "citation2"})
+	})
+}

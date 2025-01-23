@@ -31,6 +31,9 @@ func main() {
 	}
 
 	fmt.Println(res.GetLastContent())
+	for i, c := range res.GetCitations() {
+		fmt.Printf("Citation %d: %s", i+1, c)
+	}
 	// fmt.Printf("%+v\n", *req)
 	// fmt.Println("*************")
 	// fmt.Printf("%+v\n", res)
