@@ -188,12 +188,11 @@ func WithTopK(topK int) CompletionRequestOption {
 // WithStream sets the stream option.
 // Determines whether or not to incrementally stream the response
 // with server-sent events with content-type: text/event-stream
-// The client of this does not handle the stream, it is up to the user to handle the stream.
-// func WithStream(stream bool) CompletionRequestOption {
-// 	return func(r *CompletionRequest) {
-// 		r.Stream = stream
-// 	}
-// }
+func WithStream(stream bool) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.Stream = stream
+	}
+}
 
 // WithPresencePenalty sets the presence penalty option.
 func WithPresencePenalty(presencePenalty float64) CompletionRequestOption {
