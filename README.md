@@ -1,7 +1,7 @@
+# Perplexity API Go Client
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/perplexity-go)](https://goreportcard.com/report/github.com/sgaunet/perplexity-go)
 ![coverage](https://raw.githubusercontent.com/wiki/sgaunet/perplexity-go/coverage-badge.svg)
-
-# Perplexity API Go Client
 
 A lightweight Go library for interacting with the [Perplexity AI API](https://docs.perplexity.ai/reference/post_chat_completions), focusing on the chat completion endpoint.
 
@@ -12,19 +12,21 @@ Features
     Handles authentication and API key management
     Provides convenient methods for common operations
 
+If you need a **CLI tool** to interact with the API, check out the [pplx](https://github.com/sgaunet/pplx) project.
+
 ## Installation
 
 To install the library, use go get:
 
-```bash
+    ```sh
 go get github.com/sgaunet/perplexity-go/v2
-```
+    ```
 
 ## Usage
 
 Here's a quick example of how to use the library:
 
-```go
+    ```go
 package main
 
 import (
@@ -57,7 +59,7 @@ client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
 
   fmt.Println(res.GetLastContent())
 }
-```
+    ```
 
 ## Documentation
 
