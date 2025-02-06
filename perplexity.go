@@ -66,14 +66,6 @@ func (s *Client) GetHTTPTimeout() time.Duration {
 
 // SendCompletionRequest sends a completion request to the Perplexity API.
 func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionResponse, error) {
-	// if req.Stream {
-	// 	return s.sendSSEHTTPRequest(req)
-	// }
-	return s.SendHTTPRequest(req)
-}
-
-// sendHTTPRequest sends a completion request to the Perplexity API. (basic http request, not SSE)
-func (s *Client) SendHTTPRequest(req *CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
 	if req == nil {
 		return nil, fmt.Errorf("request must not be nil")
@@ -119,11 +111,16 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 	if responseChannel == nil {
 		return fmt.Errorf("responseChannel must not be nil")
 	}
-	defer close(responseChannel)
-	defer wg.Done()
+	if wg == nil {
+		return fmt.Errorf("wg must not be nil")
+	}
 	if req == nil {
 		return fmt.Errorf("request must not be nil")
 	}
+
+	defer close(responseChannel)
+	defer wg.Done()
+
 	requestBody, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
@@ -153,12 +150,9 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		if errBody != io.EOF && err != nil {
 			return fmt.Errorf("failed to read response body: %w", err)
 		}
-		// // Trim 'data: ' from the beginning of the message
-		// if len(data) < 6 {
-		// 	return fmt.Errorf("invalid message: %s", string(data))
-		// }
 
-		// split tmpData by '\r\n\r\n'
+		// split the response by '\r\n\r\n'
+		// because each SSE event is separated by '\r\n\r\n'
 		splittedData := bytes.Split(data, []byte("\r\n\r\n"))
 	loop:
 		for _, d := range splittedData {
@@ -185,7 +179,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 				lastMessage = tmpData
 				break loop
 			}
-			// Append the response to the full response
+			// Write the response on the channel
 			responseChannel <- r
 		}
 		// Check if it's the end of the stream

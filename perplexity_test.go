@@ -168,13 +168,6 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 		assert.Equal(t, fullResponse, perplexity.CompletionResponse{})
 	})
 
-	t.Run("Check that SendSSEHTTPRequest returns an error if no message to send to the API", func(t *testing.T) {
-		r := perplexity.NewClient(apiKey)
-		req := perplexity.NewCompletionRequest()
-		err := r.SendSSEHTTPRequest(nil, req, nil)
-		assert.NotNil(t, err)
-	})
-
 	t.Run("Check that SendSSEHTTPRequest receives all events", func(t *testing.T) {
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -223,5 +216,27 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 				},
 			},
 		}, fullResponse.Choices)
+	})
+
+	t.Run("Check that SendSSEHTTPRequest don't accept nil request", func(t *testing.T) {
+		r := perplexity.NewClient(apiKey)
+		ch := make(chan perplexity.CompletionResponse, 5)
+		wg := sync.WaitGroup{}
+		err := r.SendSSEHTTPRequest(&wg, nil, ch)
+		assert.NotNil(t, err)
+	})
+	t.Run("Check that SendSSEHTTPRequest don't accept nil waitgroup", func(t *testing.T) {
+		r := perplexity.NewClient(apiKey)
+		req := perplexity.NewCompletionRequest()
+		ch := make(chan perplexity.CompletionResponse, 5)
+		err := r.SendSSEHTTPRequest(nil, req, ch)
+		assert.NotNil(t, err)
+	})
+	t.Run("Check that SendSSEHTTPRequest don't accept nil channel", func(t *testing.T) {
+		r := perplexity.NewClient(apiKey)
+		req := perplexity.NewCompletionRequest()
+		wg := sync.WaitGroup{}
+		err := r.SendSSEHTTPRequest(&wg, req, nil)
+		assert.NotNil(t, err)
 	})
 }
