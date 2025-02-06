@@ -18,15 +18,15 @@ If you need a **CLI tool** to interact with the API, check out the [pplx](https:
 
 To install the library, use go get:
 
-    ```sh
+```sh
 go get github.com/sgaunet/perplexity-go/v2
-    ```
+```
 
 ## Usage
 
 Here's a quick example of how to use the library:
 
-    ```go
+```go
 package main
 
 import (
@@ -59,7 +59,7 @@ client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
 
   fmt.Println(res.GetLastContent())
 }
-    ```
+```
 
 ## Documentation
 
