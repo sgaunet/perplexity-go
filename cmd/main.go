@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/sgaunet/perplexity-go/v2"
 )
@@ -17,7 +18,7 @@ func main() {
 			Content: "Wat's the capital of France?",
 		},
 	}
-	req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithReturnImages(true))
+	req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg))
 	err := req.Validate()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -34,7 +35,41 @@ func main() {
 	for i, c := range res.GetCitations() {
 		fmt.Printf("Citation %d: %s", i+1, c)
 	}
-	// fmt.Printf("%+v\n", *req)
-	// fmt.Println("*************")
-	// fmt.Printf("%+v\n", res)
+	fmt.Println("*************")
+
+	// Support also server-sent events
+	req = perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithStream(true))
+	err = req.Validate()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var wg sync.WaitGroup
+	chResponses := make(chan perplexity.CompletionResponse, 5)
+	fullResponse := perplexity.CompletionResponse{}
+
+	waitAfterGoroutine := make(chan struct{})
+	wg.Add(1)
+	go func() {
+		waitAfterGoroutine <- struct{}{}
+		err = client.SendSSEHTTPRequest(&wg, req, chResponses)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-waitAfterGoroutine
+	for msg := range chResponses {
+		fullResponse = msg
+	}
+	// perplexity.TreatSSEData(chResponses)
+	wg.Wait()
+	fmt.Println("----------------")
+	fmt.Println(fullResponse.GetLastContent())
+	// if err != nil {
+	// 	fmt.Printf("Error: %v\n", err)
+	// 	os.Exit(1)
+	// }
 }
