@@ -14,6 +14,11 @@ Features
 
 If you need a **CLI tool** to interact with the API, check out the [pplx](https://github.com/sgaunet/pplx) project.
 
+Due to AI models that change regulary, only the default model will be handled for version >=2.5.0. Using the `WithModel`, you're able to specify the model you want to use. The default model will always be maintained up to date.
+Now the library should be stable.
+
+**If you have access to the beta version of the API** I'm interesred to get some informations to hanle image generation. Please contact me.
+
 ## Installation
 
 To install the library, use go get:

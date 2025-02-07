@@ -19,7 +19,6 @@ const DefautTimeout = 10 * time.Second
 
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
-const ProModel = "sonar-pro"
 
 const defaultSizeSSEResponse = 64000
 
