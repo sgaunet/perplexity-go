@@ -26,7 +26,7 @@ type CompletionRequest struct {
 	Messages []Message `json:"messages" validate:"required,dive"`
 	// Model: name of the model that will complete your prompt
 	// supported model: https://docs.perplexity.ai/guides/model-cards
-	Model string `json:"model" validate:"required,oneof=sonar sonar-pro llama-3.1-sonar-huge-128k-online"`
+	Model string `json:"model" validate:"required"`
 	// MaxTokens: The maximum number of completion tokens returned by the API.
 	// The total number of tokens requested in max_tokens plus the number of
 	// prompt tokens sent in messages must not exceed the context window token limit of model requested.
@@ -119,13 +119,6 @@ func WithModel(model string) CompletionRequestOption {
 func WithDefaultModel() CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Model = DefaultModel
-	}
-}
-
-// WithModelProModel sets the model to sonar-pro.
-func WithProModel() CompletionRequestOption {
-	return func(r *CompletionRequest) {
-		r.Model = ProModel
 	}
 }
 
