@@ -84,7 +84,7 @@ func TestGetCompletion(t *testing.T) {
 func TestHTTPTimeout(t *testing.T) {
 	t.Run("Check default timeout", func(t *testing.T) {
 		r := perplexity.NewClient(apiKey)
-		assert.Equal(t, perplexity.DefautTimeout, r.GetHTTPTimeout())
+		assert.Equal(t, perplexity.DefaultTimeout, r.GetHTTPTimeout())
 		r.SetHTTPTimeout(1 * time.Second)
 		assert.Equal(t, 1*time.Second, r.GetHTTPTimeout())
 	})
