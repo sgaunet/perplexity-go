@@ -14,8 +14,8 @@ import (
 // DefaultEndpoint is the default endpoint for the Perplexity API.
 const DefaultEndpoint = "https://api.perplexity.ai/chat/completions"
 
-// DefautTimeout is the default timeout for the HTTP client.
-const DefautTimeout = 10 * time.Second
+// DefaultTimeout is the default timeout for the HTTP client.
+const DefaultTimeout = 30 * time.Second
 
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
@@ -37,7 +37,7 @@ func NewClient(apiKey string) *Client {
 		apiKey:   apiKey,
 		endpoint: DefaultEndpoint,
 		httpClient: &http.Client{
-			Timeout: DefautTimeout,
+			Timeout: DefaultTimeout,
 		},
 	}
 	return s
