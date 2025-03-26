@@ -90,7 +90,11 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 		if resp.StatusCode == http.StatusUnauthorized {
 			return nil, fmt.Errorf("unauthorized: check your API key")
 		}
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -191,7 +195,11 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		if resp.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("unauthorized: check your API key")
 		}
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return ParseErrorMessage(body)
 	}
 	return nil
 }
