@@ -71,6 +71,16 @@ client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
 
 For detailed documentation and more examples, please refer to the GoDoc page.
 
+## Max Tokens
+
+* **General Use Cases**: For most general-purpose applications, setting max_tokens to 4000 is a good starting point. This is because many Perplexity models, like the default sonar model, can generate responses up to this limit (It's the default value in this library).
+
+* **Long-Form Content**: If you are working with long-form content or need more extensive responses, you might consider models like sonar-pro, which can handle larger outputs. However, the maximum output tokens for such models might still be capped at 8,000 tokens.
+
+* **Model-Specific Limits**: Ensure that your chosen model supports the max_tokens value you set. For example, some models might have a maximum context window or output limit that you should not exceed.
+
+* **Performance Considerations**: Higher max_tokens values can increase response time and computational resources. Therefore, balance between the need for detailed responses and performance efficiency.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
