@@ -13,7 +13,7 @@ const (
 	DefaultTemperature      = 0.2
 	DefaultTopP             = 0.9
 	DefaultTopK             = 0
-	DefaultMaxTokens        = 0
+	DefaultMaxTokens        = 4000
 	DefaultPresencePenalty  = 0.0
 	DefaultFrequencyPenalty = 1.0
 
@@ -32,7 +32,7 @@ type CompletionRequest struct {
 	// prompt tokens sent in messages must not exceed the context window token limit of model requested.
 	// If left unspecified, then the model will generate tokens until
 	// either it reaches its stop token or the end of its context window.
-	MaxTokens int `json:"max_tokens" validate:"gte=0"`
+	MaxTokens int `json:"max_tokens" validate:"gt=0"`
 	// Temperatur: The amount of randomness in the response, valued between 0 inclusive and 2 exclusive.
 	// Higher values are more random, and lower values are more deterministic.
 	// Required range: 0 < x < 2
