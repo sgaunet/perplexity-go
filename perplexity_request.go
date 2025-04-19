@@ -10,12 +10,13 @@ var ErrSearchDomainFilter = errors.New("search domain filter must be less than o
 var ErrSearchRecencyFilter = errors.New("search recency filter is incompatible with images")
 
 const (
-	DefaultTemperature      = 0.2
-	DefaultTopP             = 0.9
-	DefaultTopK             = 0
-	DefaultMaxTokens        = 4000
-	DefaultPresencePenalty  = 0.0
-	DefaultFrequencyPenalty = 1.0
+	DefaultTemperature         = 0.2
+	DefaultTopP                = 0.9
+	DefaultTopK                = 0
+	DefaultMaxTokens           = 4000
+	DefaultPresencePenalty     = 0.0
+	DefaultFrequencyPenalty    = 1.0
+	DefaultSearchRecencyFilter = "month"
 
 	MaxLengthOfSearchDomainFilter = 3
 )
@@ -53,7 +54,7 @@ type CompletionRequest struct {
 	// should return related questions. Related questions are in closed beta
 	ReturnRelatedQuestions bool `json:"return_related_questions"`
 	// SearchRecencyFilter: Returns search results within the specified time interval - does not apply to images.
-	// Values include month, week, day, hour
+	// Values include year, month, week, day, hour
 	SearchRecencyFilter string `json:"search_recency_filter"`
 	// TopK: The number of tokens to keep for highest top-k filtering,
 	// specified as an integer between 0 and 2048 inclusive.
@@ -88,7 +89,7 @@ func DefaultCompletionRequest() *CompletionRequest {
 		SearchDomainFilter:     nil,
 		ReturnImages:           false,
 		ReturnRelatedQuestions: false,
-		SearchRecencyFilter:    "",
+		SearchRecencyFilter:    DefaultSearchRecencyFilter,
 		TopK:                   DefaultTopK,
 		Stream:                 false,
 		PresencePenalty:        DefaultPresencePenalty,
