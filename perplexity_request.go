@@ -55,7 +55,7 @@ type CompletionRequest struct {
 	ReturnRelatedQuestions bool `json:"return_related_questions"`
 	// SearchRecencyFilter: Returns search results within the specified time interval - does not apply to images.
 	// Values include year, month, week, day, hour
-	SearchRecencyFilter string `json:"search_recency_filter"`
+	SearchRecencyFilter string `json:"search_recency_filter,omitempty" validate:"omitempty,oneof=year month week day hour"`
 	// TopK: The number of tokens to keep for highest top-k filtering,
 	// specified as an integer between 0 and 2048 inclusive.
 	// If set to 0, top-k filtering is disabled.
