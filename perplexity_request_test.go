@@ -3,6 +3,7 @@ package perplexity_test
 import (
 	"testing"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/sgaunet/perplexity-go/v2"
 	"github.com/stretchr/testify/assert"
 )
@@ -86,6 +87,45 @@ func TestWithSearchRecencyFilter(t *testing.T) {
 		req := perplexity.NewCompletionRequest(perplexity.WithSearchRecencyFilter(searchRecencyFilter))
 		assert.Equal(t, req.SearchRecencyFilter, searchRecencyFilter)
 	})
+}
+
+func TestSearchRecencyFilterValidationRule(t *testing.T) {
+	validate := validator.New()
+	tests := []struct {
+		name    string
+		value   string
+		valid   bool
+	}{
+		{"empty value", "", true},
+		{"year is valid", "year", true},
+		{"month is valid", "month", true},
+		{"week is valid", "week", true},
+		{"day is valid", "day", true},
+		{"hour is valid", "hour", true},
+		{"invalid value foo", "foo", false},
+		{"invalid value 2022", "2022", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := &perplexity.CompletionRequest{
+				Messages:             []perplexity.Message{{Role: "user", Content: "test"}},
+				Model:                perplexity.DefaultModel,
+				MaxTokens:            10,
+				Temperature:          1.0,
+				TopP:                 0.5,
+				SearchRecencyFilter:  test.value,
+				TopK:                 10,
+				PresencePenalty:      0.0,
+				FrequencyPenalty:     1.0,
+			}
+			err := validate.Struct(req)
+			if test.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
 }
 
 func TestWithTopK(t *testing.T) {
