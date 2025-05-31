@@ -1,6 +1,7 @@
 package perplexity_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
@@ -128,6 +129,113 @@ func TestSearchRecencyFilterValidationRule(t *testing.T) {
 	}
 }
 
+func TestWebSearchOptionsValidation(t *testing.T) {
+	validate := validator.New()
+	t.Run("valid search_context_size values", func(t *testing.T) {
+		for _, val := range []string{"low", "medium", "high", ""} {
+			req := &perplexity.CompletionRequest{
+				Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+				Model:            perplexity.DefaultModel,
+				MaxTokens:        10,
+				Temperature:      1.0,
+				TopP:             0.5,
+				TopK:             10,
+				PresencePenalty:  0.0,
+				FrequencyPenalty: 1.0,
+				WebSearchOptions: &perplexity.WebSearchOptions{SearchContextSize: val},
+			}
+			assert.NoError(t, validate.Struct(req))
+		}
+	})
+	t.Run("invalid search_context_size value", func(t *testing.T) {
+		req := &perplexity.CompletionRequest{
+			Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+			Model:            perplexity.DefaultModel,
+			MaxTokens:        10,
+			Temperature:      1.0,
+			TopP:             0.5,
+			TopK:             10,
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 1.0,
+			WebSearchOptions: &perplexity.WebSearchOptions{SearchContextSize: "super"},
+		}
+		assert.Error(t, validate.Struct(req))
+	})
+	t.Run("valid country code", func(t *testing.T) {
+		req := &perplexity.CompletionRequest{
+			Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+			Model:            perplexity.DefaultModel,
+			MaxTokens:        10,
+			Temperature:      1.0,
+			TopP:             0.5,
+			TopK:             10,
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 1.0,
+			WebSearchOptions: &perplexity.WebSearchOptions{
+				UserLocation: &perplexity.UserLocation{
+					Latitude:  48.85,
+					Longitude: 2.35,
+					Country:   "FR",
+				},
+			},
+		}
+		assert.NoError(t, validate.Struct(req))
+	})
+	t.Run("invalid country code (too long)", func(t *testing.T) {
+		req := &perplexity.CompletionRequest{
+			Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+			Model:            perplexity.DefaultModel,
+			MaxTokens:        10,
+			Temperature:      1.0,
+			TopP:             0.5,
+			TopK:             10,
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 1.0,
+			WebSearchOptions: &perplexity.WebSearchOptions{
+				UserLocation: &perplexity.UserLocation{
+					Latitude:  48.85,
+					Longitude: 2.35,
+					Country:   "FRA",
+				},
+			},
+		}
+		assert.Error(t, validate.Struct(req))
+	})
+	t.Run("omitempty: field omitted if not set", func(t *testing.T) {
+		req := &perplexity.CompletionRequest{
+			Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+			Model:            perplexity.DefaultModel,
+			MaxTokens:        10,
+			Temperature:      1.0,
+			TopP:             0.5,
+			TopK:             10,
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 1.0,
+		}
+		b, err := json.Marshal(req)
+		assert.NoError(t, err)
+		assert.NotContains(t, string(b), "web_search_options")
+	})
+	// Also check that if set, the field is present
+	t.Run("web_search_options present when set", func(t *testing.T) {
+		req := &perplexity.CompletionRequest{
+			Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+			Model:            perplexity.DefaultModel,
+			MaxTokens:        10,
+			Temperature:      1.0,
+			TopP:             0.5,
+			TopK:             10,
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 1.0,
+			WebSearchOptions: &perplexity.WebSearchOptions{SearchContextSize: "high"},
+		}
+		b, err := json.Marshal(req)
+		assert.NoError(t, err)
+		assert.Contains(t, string(b), "web_search_options")
+		assert.Contains(t, string(b), "high")
+	})
+}
+
 func TestWithTopK(t *testing.T) {
 	t.Run("creates a new CompletionRequest with top k", func(t *testing.T) {
 		topK := 10
@@ -193,5 +301,105 @@ func TestWithFrequencyPenalty(t *testing.T) {
 		frequencyPenalty := 0.5
 		req := perplexity.NewCompletionRequest(perplexity.WithFrequencyPenalty(frequencyPenalty))
 		assert.Equal(t, req.FrequencyPenalty, frequencyPenalty)
+	})
+}
+
+func TestWithSearchContextSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		size     string
+		expected string
+	}{
+		{"low context size", "low", "low"},
+		{"medium context size", "medium", "medium"},
+		{"high context size", "high", "high"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := perplexity.NewCompletionRequest(perplexity.WithSearchContextSize(tt.size))
+			assert.NotNil(t, req.WebSearchOptions)
+			assert.Equal(t, tt.expected, req.WebSearchOptions.SearchContextSize)
+		})
+	}
+
+	t.Run("initializes WebSearchOptions if nil", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		req.WebSearchOptions = nil
+		req = perplexity.NewCompletionRequest(perplexity.WithSearchContextSize("medium"))
+		assert.NotNil(t, req.WebSearchOptions)
+		assert.Equal(t, "medium", req.WebSearchOptions.SearchContextSize)
+	})
+}
+
+func TestWithUserLocation(t *testing.T) {
+	tests := []struct {
+		name      string
+		latitude  float64
+		longitude float64
+		country   string
+	}{
+		{
+			name:      "US location",
+			latitude:  37.7749,
+			longitude: -122.4194,
+			country:   "US",
+		},
+		{
+			name:      "FR location",
+			latitude:  48.8566,
+			longitude: 2.3522,
+			country:   "FR",
+		},
+		{
+			name:      "JP location",
+			latitude:  35.6762,
+			longitude: 139.6503,
+			country:   "JP",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := perplexity.NewCompletionRequest(
+				perplexity.WithUserLocation(tt.latitude, tt.longitude, tt.country),
+			)
+
+			assert.NotNil(t, req.WebSearchOptions)
+			assert.NotNil(t, req.WebSearchOptions.UserLocation)
+			assert.Equal(t, tt.latitude, req.WebSearchOptions.UserLocation.Latitude)
+			assert.Equal(t, tt.longitude, req.WebSearchOptions.UserLocation.Longitude)
+			assert.Equal(t, tt.country, req.WebSearchOptions.UserLocation.Country)
+		})
+	}
+
+	t.Run("initializes WebSearchOptions if nil", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		req.WebSearchOptions = nil
+		req = perplexity.NewCompletionRequest(
+			perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
+		)
+
+		assert.NotNil(t, req.WebSearchOptions)
+		assert.NotNil(t, req.WebSearchOptions.UserLocation)
+		assert.Equal(t, 48.8566, req.WebSearchOptions.UserLocation.Latitude)
+		assert.Equal(t, 2.3522, req.WebSearchOptions.UserLocation.Longitude)
+		assert.Equal(t, "FR", req.WebSearchOptions.UserLocation.Country)
+	})
+
+	t.Run("overwrites existing user location", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithUserLocation(40.7128, -74.0060, "US"),
+		)
+
+		req = perplexity.NewCompletionRequest(
+			perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
+		)
+
+		assert.NotNil(t, req.WebSearchOptions)
+		assert.NotNil(t, req.WebSearchOptions.UserLocation)
+		assert.Equal(t, 48.8566, req.WebSearchOptions.UserLocation.Latitude)
+		assert.Equal(t, 2.3522, req.WebSearchOptions.UserLocation.Longitude)
+		assert.Equal(t, "FR", req.WebSearchOptions.UserLocation.Country)
 	})
 }
