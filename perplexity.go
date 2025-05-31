@@ -1,6 +1,7 @@
 package perplexity
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -128,13 +129,16 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
+
 	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
-	httpReq.Header.Set("Cache-Control", "no-cache")
+	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Cache-Control", "no-cache")
 	httpReq.Header.Set("Connection", "keep-alive")
 
 	resp, err := s.httpClient.Do(httpReq)
@@ -143,54 +147,6 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 	}
 	defer resp.Body.Close()
 
-	// lastMessage is used to store the last message in case of truncation
-	// received events may be truncated
-	var lastMessage []byte
-	for {
-		var tmpData []byte
-		data := make([]byte, defaultSizeSSEResponse)
-		_, errBody := resp.Body.Read(data)
-		if errBody != io.EOF && err != nil {
-			return fmt.Errorf("failed to read response body: %w", err)
-		}
-
-		// split the response by '\r\n\r\n'
-		// because each SSE event is separated by '\r\n\r\n'
-		splittedData := bytes.Split(data, []byte("\r\n\r\n"))
-	loop:
-		for _, d := range splittedData {
-			// Check if the last message has been truncated
-			// if not, we can directly use the data
-			if len(lastMessage) == 0 {
-				tmpData = d[6:]
-			}
-			// if the last message has been truncated, we need to concatenate the last message with the next one
-			if len(lastMessage) > 0 {
-				tmpData = append(lastMessage, d[6:]...)
-				lastMessage = nil
-			}
-			// trim nil bytes
-			tmpData = bytes.Trim(tmpData, "\x00")
-			if len(tmpData) == 0 {
-				break loop
-			}
-			var r CompletionResponse
-			err = json.Unmarshal(tmpData, &r)
-			if err != nil {
-				// we ignore the error because the last message has been truncated
-				// we need to concatenate the last message with the next one
-				lastMessage = tmpData
-				break loop
-			}
-			// Write the response on the channel
-			responseChannel <- r
-		}
-		// Check if it's the end of the stream
-		if errors.Is(errBody, io.EOF) {
-			break
-		}
-	}
-	// Check return status code
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("unauthorized: check your API key")
@@ -201,5 +157,63 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		}
 		return ParseErrorMessage(body)
 	}
+
+	// Create a buffered reader for the response body
+	reader := bufio.NewReader(resp.Body)
+	var buffer bytes.Buffer
+
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("error reading response: %w", err)
+		}
+
+		// Skip empty lines and comments
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 || bytes.HasPrefix(line, []byte(":")) {
+			continue
+		}
+
+		// Check if this is a data line
+		if bytes.HasPrefix(line, []byte("data: ")) {
+			// Remove the "data: " prefix
+			data := bytes.TrimPrefix(line, []byte("data: "))
+			data = bytes.TrimSpace(data)
+
+			// Check for [DONE] message
+			if bytes.Equal(data, []byte("[DONE]")) {
+				break
+			}
+
+			// Try to parse the JSON data
+			var r CompletionResponse
+			if err := json.Unmarshal(data, &r); err != nil {
+				// If we have a buffer, try to append to it
+				if buffer.Len() > 0 {
+					buffer.Write(data)
+					if err := json.Unmarshal(buffer.Bytes(), &r); err != nil {
+						// If we still can't parse, continue collecting
+						continue
+					}
+					buffer.Reset()
+				} else {
+					// Start buffering incomplete JSON
+					buffer.Write(data)
+					continue
+				}
+			}
+
+			// Send the response to the channel
+			select {
+			case responseChannel <- r:
+			default:
+				// Don't block if the channel is full
+			}
+		}
+	}
+
 	return nil
 }
