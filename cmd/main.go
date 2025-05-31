@@ -8,32 +8,63 @@ import (
 	"github.com/sgaunet/perplexity-go/v2"
 )
 
-// This example demonstrates how to create a completion request with a message
-// It then sends the request to the API and prints the last completion content.
+// This example demonstrates how to create a completion request with web search options
 func main() {
 	client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
+
+	// Example message that would benefit from web search
 	msg := []perplexity.Message{
 		{
 			Role:    "user",
-			Content: "Wat's the capital of France?",
+			Content: "What are the latest developments in AI?",
 		},
 	}
-	req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg))
-	err := req.Validate()
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+
+	// Create web search options with context size and user location
+	webSearchOpts := &perplexity.WebSearchOptions{
+		SearchContextSize: "high", // Use high for comprehensive answers
+		UserLocation: &perplexity.UserLocation{
+			Latitude:  48.8566, // Paris coordinates as an example
+			Longitude: 2.3522,
+			Country:   "FR",
+		},
+	}
+
+	// Create request with messages and web search options
+	req := perplexity.NewCompletionRequest(
+		perplexity.WithMessages(msg),
+		perplexity.WithWebSearchOptions(webSearchOpts),
+	)
+
+	// Alternatively, you can set options individually:
+	// req := perplexity.NewCompletionRequest(
+	// 	perplexity.WithMessages(msg),
+	// 	perplexity.WithSearchContextSize("high"),
+	// 	perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
+	// )
+
+	// Validate the request
+	if err := req.Validate(); err != nil {
+		fmt.Printf("Validation error: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Send the request
 	res, err := client.SendCompletionRequest(req)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("API error: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Print the response and citations
+	fmt.Println("=== Response ===")
 	fmt.Println(res.GetLastContent())
-	for i, c := range res.GetCitations() {
-		fmt.Printf("Citation %d: %s", i+1, c)
+
+	if len(res.GetCitations()) > 0 {
+		fmt.Println("\n=== Citations ===")
+		for i, c := range res.GetCitations() {
+			fmt.Printf("%d. %s\n", i+1, c)
+		}
 	}
 	fmt.Println("*************")
 
