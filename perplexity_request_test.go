@@ -93,9 +93,9 @@ func TestWithSearchRecencyFilter(t *testing.T) {
 func TestSearchRecencyFilterValidationRule(t *testing.T) {
 	validate := validator.New()
 	tests := []struct {
-		name    string
-		value   string
-		valid   bool
+		name  string
+		value string
+		valid bool
 	}{
 		{"empty value", "", true},
 		{"year is valid", "year", true},
@@ -109,15 +109,15 @@ func TestSearchRecencyFilterValidationRule(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := &perplexity.CompletionRequest{
-				Messages:             []perplexity.Message{{Role: "user", Content: "test"}},
-				Model:                perplexity.DefaultModel,
-				MaxTokens:            10,
-				Temperature:          1.0,
-				TopP:                 0.5,
-				SearchRecencyFilter:  test.value,
-				TopK:                 10,
-				PresencePenalty:      0.0,
-				FrequencyPenalty:     1.0,
+				Messages:            []perplexity.Message{{Role: "user", Content: "test"}},
+				Model:               perplexity.DefaultModel,
+				MaxTokens:           10,
+				Temperature:         1.0,
+				TopP:                0.5,
+				SearchRecencyFilter: test.value,
+				TopK:                10,
+				PresencePenalty:     0.0,
+				FrequencyPenalty:    1.0,
 			}
 			err := validate.Struct(req)
 			if test.valid {
@@ -390,10 +390,6 @@ func TestWithUserLocation(t *testing.T) {
 	t.Run("overwrites existing user location", func(t *testing.T) {
 		req := perplexity.NewCompletionRequest(
 			perplexity.WithUserLocation(40.7128, -74.0060, "US"),
-		)
-
-		req = perplexity.NewCompletionRequest(
-			perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
 		)
 
 		assert.NotNil(t, req.WebSearchOptions)
