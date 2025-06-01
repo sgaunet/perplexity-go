@@ -3,6 +3,7 @@ package perplexity
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,6 +67,11 @@ func (s *Client) GetHTTPTimeout() time.Duration {
 
 // SendCompletionRequest sends a completion request to the Perplexity API.
 func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionResponse, error) {
+	return s.SendCompletionRequestWithContext(context.Background(), req)
+}
+
+// SendCompletionRequest sends a completion request to the Perplexity API.
+func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
 	if req == nil {
 		return nil, fmt.Errorf("request must not be nil")
@@ -74,7 +80,7 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -112,6 +118,13 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 // It writes each response (event) on the channel responseChannel
 // The channel will be closed when the request is done.
 func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
+	return s.SendSSEHTTPRequestWithContext(context.Background(), wg, req, responseChannel)
+}
+
+// SendSSEHTTPRequest sends a completion request to the Perplexity API using Server-Sent Events.
+// It writes each response (event) on the channel responseChannel
+// The channel will be closed when the request is done.
+func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
 	if responseChannel == nil {
 		return fmt.Errorf("responseChannel must not be nil")
 	}
@@ -130,7 +143,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
