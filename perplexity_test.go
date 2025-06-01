@@ -43,7 +43,7 @@ func TestGetCompletion(t *testing.T) {
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Check the request
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, http.MethodPost)
 				assert.Equal(t, r.Header.Get("Authorization"), "Bearer "+apiKey)
 				assert.Equal(t, r.Header.Get("Content-Type"), "application/json")
 				defer r.Body.Close()
@@ -124,7 +124,7 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Check the headers
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, http.MethodPost)
 				assert.Equal(t, r.Header.Get("Authorization"), "Bearer "+apiKey)
 				assert.Equal(t, r.Header.Get("Cache-Control"), "no-cache")
 				assert.Equal(t, r.Header.Get("Accept"), "text/event-stream")
