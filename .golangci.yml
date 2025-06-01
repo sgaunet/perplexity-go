@@ -18,3 +18,5 @@ linters:
     - exhaustruct
     - errcheck
     - tagliatelle
+    - lll
+    - funlen

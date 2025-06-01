@@ -2,6 +2,7 @@ package perplexity
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -308,9 +309,8 @@ func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
 // Validate validates the completion request.
 func (r *CompletionRequest) Validate() error {
 	validate := validator.New()
-	err := validate.Struct(r)
-	if err != nil {
-		return err
+	if err := validate.Struct(r); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
 	}
 	if err := r.ValidateSearchDomainFilter(); err != nil {
 		return err

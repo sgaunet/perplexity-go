@@ -109,11 +109,10 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	err = json.Unmarshal(body, r)
-	if err != nil {
+	if err := json.Unmarshal(body, r); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
 	}
-	return r, err
+	return r, nil
 }
 
 // SendSSEHTTPRequest sends a completion request to the Perplexity API using Server-Sent Events.
