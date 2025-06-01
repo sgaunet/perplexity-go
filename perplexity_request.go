@@ -10,8 +10,8 @@ import (
 // ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
 var ErrSearchDomainFilter = errors.New("search domain filter must be less than or equal to 3")
 
-// ErrSearchRecencyFilter is returned when the search recency filter is incompatible with image search.
-var ErrSearchRecencyFilter = errors.New("search recency filter is incompatible with images")
+// ErrSearchRecencyFilter is returned when the search recency filter is invalid or incompatible.
+var ErrSearchRecencyFilter = errors.New("search recency filter must be one of month, week, day, hour and is incompatible with images")
 
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
@@ -339,7 +339,7 @@ func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
 		case "month", "week", "day", "hour":
 			return nil
 		default:
-			return errors.New("search recency filter must be one of month, week, day, hour")
+			return ErrSearchRecencyFilter
 		}
 	}
 	return nil

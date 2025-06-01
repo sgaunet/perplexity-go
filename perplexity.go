@@ -24,6 +24,18 @@ const DefaultTimeout = 30 * time.Second
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
 
+// Error definitions.
+var (
+	// ErrNilRequest is returned when a nil request is provided.
+	ErrNilRequest = errors.New("request must not be nil")
+	// ErrUnauthorized is returned when the API key is invalid or missing.
+	ErrUnauthorized = errors.New("unauthorized: check your API key")
+	// ErrNilResponseChannel is returned when a nil response channel is provided.
+	ErrNilResponseChannel = errors.New("response channel must not be nil")
+	// ErrNilWaitGroup is returned when a nil wait group is provided.
+	ErrNilWaitGroup = errors.New("wait group must not be nil")
+)
+
 // Client is a client for the Perplexity API.
 type Client struct {
 	endpoint   string
@@ -74,7 +86,7 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
 	if req == nil {
-		return nil, fmt.Errorf("request must not be nil")
+		return nil, ErrNilRequest
 	}
 	requestBody, err := json.Marshal(req)
 	if err != nil {
@@ -95,7 +107,7 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	// Check return status code
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("unauthorized: check your API key")
+			return nil, ErrUnauthorized
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -125,13 +137,13 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 // The channel will be closed when the request is done.
 func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error { //nolint:gocognit,cyclop
 	if responseChannel == nil {
-		return fmt.Errorf("responseChannel must not be nil")
+		return ErrNilResponseChannel
 	}
 	if wg == nil {
-		return fmt.Errorf("wg must not be nil")
+		return ErrNilWaitGroup
 	}
 	if req == nil {
-		return fmt.Errorf("request must not be nil")
+		return ErrNilRequest
 	}
 
 	defer close(responseChannel)
@@ -161,7 +173,7 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return fmt.Errorf("unauthorized: check your API key")
+			return ErrUnauthorized
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
