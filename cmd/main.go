@@ -1,3 +1,4 @@
+// Package main provides the command-line interface for the Perplexity API client.
 package main
 
 import (
@@ -8,7 +9,7 @@ import (
 	"github.com/sgaunet/perplexity-go/v2"
 )
 
-// This example demonstrates how to create a completion request with web search options
+// This example demonstrates how to create a completion request with web search options.
 func main() {
 	client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
 

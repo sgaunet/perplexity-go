@@ -2,22 +2,40 @@ package perplexity
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 )
 
+// ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
 var ErrSearchDomainFilter = errors.New("search domain filter must be less than or equal to 3")
-var ErrSearchRecencyFilter = errors.New("search recency filter is incompatible with images")
+
+// ErrSearchRecencyFilter is returned when the search recency filter is invalid or incompatible.
+var ErrSearchRecencyFilter = errors.New("search recency filter must be one of month, week, day, hour and is incompatible with images")
 
 const (
-	DefaultTemperature         = 0.2
-	DefaultTopP                = 0.9
-	DefaultTopK                = 0
-	DefaultMaxTokens           = 4000
-	DefaultPresencePenalty     = 0.0
-	DefaultFrequencyPenalty    = 1.0
+	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
+	DefaultTemperature = 0.2
+
+	// DefaultTopP is the default top-p sampling parameter (0.0 to 1.0).
+	DefaultTopP = 0.9
+
+	// DefaultTopK is the default top-k sampling parameter (0 to 2048).
+	DefaultTopK = 0
+
+	// DefaultMaxTokens is the default maximum number of tokens to generate.
+	DefaultMaxTokens = 4000
+
+	// DefaultPresencePenalty is the default presence penalty value (-2.0 to 2.0).
+	DefaultPresencePenalty = 0.0
+
+	// DefaultFrequencyPenalty is the default frequency penalty value (0.0 to 1.0).
+	DefaultFrequencyPenalty = 1.0
+
+	// DefaultSearchRecencyFilter is the default search recency filter value.
 	DefaultSearchRecencyFilter = "month"
 
+	// MaxLengthOfSearchDomainFilter is the maximum number of domains allowed in the search domain filter.
 	MaxLengthOfSearchDomainFilter = 3
 )
 
@@ -193,7 +211,7 @@ func WithModel(model string) CompletionRequestOption {
 	}
 }
 
-// WithModelDefaultModel sets the model to sonar.
+// WithDefaultModel sets the model to the default sonar model.
 func WithDefaultModel() CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Model = DefaultModel
@@ -257,8 +275,8 @@ func WithTopK(topK int) CompletionRequestOption {
 }
 
 // WithStream sets the stream option.
-// Determines whether or not to incrementally stream the response
-// with server-sent events with content-type: text/event-stream
+// Determines whether or not to incrementally stream the response.
+// with server-sent events with content-type: text/event-stream.
 func WithStream(stream bool) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Stream = stream
@@ -291,9 +309,8 @@ func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
 // Validate validates the completion request.
 func (r *CompletionRequest) Validate() error {
 	validate := validator.New()
-	err := validate.Struct(r)
-	if err != nil {
-		return err
+	if err := validate.Struct(r); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
 	}
 	if err := r.ValidateSearchDomainFilter(); err != nil {
 		return err
@@ -322,7 +339,7 @@ func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
 		case "month", "week", "day", "hour":
 			return nil
 		default:
-			return errors.New("search recency filter must be one of month, week, day, hour")
+			return ErrSearchRecencyFilter
 		}
 	}
 	return nil

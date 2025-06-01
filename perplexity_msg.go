@@ -1,6 +1,16 @@
 package perplexity
 
-import "fmt"
+import "errors"
+
+// Error definitions.
+var (
+	// ErrPrevMessageShouldBeAssistant is returned when the previous message is not from the assistant.
+	ErrPrevMessageShouldBeAssistant = errors.New("previous message should be an assistant message")
+	// ErrFirstMessageShouldBeUser is returned when the first message is not from the user.
+	ErrFirstMessageShouldBeUser = errors.New("first message should be a user message")
+	// ErrPrevMessageShouldBeUser is returned when the previous message is not from the user.
+	ErrPrevMessageShouldBeUser = errors.New("previous message should be a user message")
+)
 
 // Message is a message object for the Perplexity API.
 type Message struct {
@@ -38,7 +48,7 @@ func (m *Messages) AddUserMessage(content string) error {
 	if len(m.messages) > 0 {
 		// Previous message should be an assistant message.
 		if m.messages[len(m.messages)-1].Role != "assistant" {
-			return fmt.Errorf("previous message should be an assistant message")
+			return ErrPrevMessageShouldBeAssistant
 		}
 	}
 	m.messages = append(m.messages, Message{
@@ -52,11 +62,11 @@ func (m *Messages) AddUserMessage(content string) error {
 func (m *Messages) AddAgentMessage(content string) error {
 	if len(m.messages) == 0 {
 		// First message should be a user message.
-		return fmt.Errorf("first message should be a user message")
+		return ErrFirstMessageShouldBeUser
 	}
 	// Previous message should be a user message.
 	if m.messages[len(m.messages)-1].Role != "user" {
-		return fmt.Errorf("previous message should be a user message")
+		return ErrPrevMessageShouldBeUser
 	}
 	m.messages = append(m.messages, Message{
 		Role:    "assistant",
@@ -65,6 +75,8 @@ func (m *Messages) AddAgentMessage(content string) error {
 	return nil
 }
 
+// GetMessages returns all messages including the system message (if any) as a slice of Message.
+// The system message is always included as the first message when present.
 func (m *Messages) GetMessages() []Message {
 	var result []Message
 	// system message is added in the first position

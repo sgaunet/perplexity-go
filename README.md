@@ -5,6 +5,7 @@
 [![GoDoc](https://godoc.org/github.com/sgaunet/perplexity-go/v2?status.svg)](https://godoc.org/github.com/sgaunet/perplexity-go/v2)
 [![CI](https://github.com/sgaunet/perplexity-go/actions/workflows/coverage.yml/badge.svg)](https://github.com/sgaunet/perplexity-go/actions/workflows/coverage.yml)
 [![Release](https://github.com/sgaunet/perplexity-go/actions/workflows/release.yml/badge.svg)](https://github.com/sgaunet/perplexity-go/actions/workflows/release.yml)
+[![golangci-lint](https://github.com/sgaunet/perplexity-go/actions/workflows/linter.yml/badge.svg)](https://github.com/sgaunet/perplexity-go/actions/workflows/linter.yml)
 
 A lightweight Go library for interacting with the [Perplexity AI API](https://docs.perplexity.ai/reference/post_chat_completions), focusing on the chat completion endpoint.
 

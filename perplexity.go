@@ -1,8 +1,11 @@
+// Package perplexity provides a Go client for interacting with the Perplexity AI API.
+// It supports both synchronous and streaming (SSE) completion requests.
 package perplexity
 
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +24,17 @@ const DefaultTimeout = 30 * time.Second
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
 
-const defaultSizeSSEResponse = 64000
+// Error definitions.
+var (
+	// ErrNilRequest is returned when a nil request is provided.
+	ErrNilRequest = errors.New("request must not be nil")
+	// ErrUnauthorized is returned when the API key is invalid or missing.
+	ErrUnauthorized = errors.New("unauthorized: check your API key")
+	// ErrNilResponseChannel is returned when a nil response channel is provided.
+	ErrNilResponseChannel = errors.New("response channel must not be nil")
+	// ErrNilWaitGroup is returned when a nil wait group is provided.
+	ErrNilWaitGroup = errors.New("wait group must not be nil")
+)
 
 // Client is a client for the Perplexity API.
 type Client struct {
@@ -66,15 +79,20 @@ func (s *Client) GetHTTPTimeout() time.Duration {
 
 // SendCompletionRequest sends a completion request to the Perplexity API.
 func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionResponse, error) {
+	return s.SendCompletionRequestWithContext(context.Background(), req)
+}
+
+// SendCompletionRequestWithContext sends a completion request to the Perplexity API with the given context.
+func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
 	if req == nil {
-		return nil, fmt.Errorf("request must not be nil")
+		return nil, ErrNilRequest
 	}
 	requestBody, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -89,7 +107,7 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 	// Check return status code
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("unauthorized: check your API key")
+			return nil, ErrUnauthorized
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -101,25 +119,31 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	err = json.Unmarshal(body, r)
-	if err != nil {
+	if err := json.Unmarshal(body, r); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
 	}
-	return r, err
+	return r, nil
 }
 
 // SendSSEHTTPRequest sends a completion request to the Perplexity API using Server-Sent Events.
 // It writes each response (event) on the channel responseChannel
 // The channel will be closed when the request is done.
 func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
+	return s.SendSSEHTTPRequestWithContext(context.Background(), wg, req, responseChannel)
+}
+
+// SendSSEHTTPRequestWithContext sends a completion request to the Perplexity API using Server-Sent Events with the given context.
+// It writes each response (event) on the provided responseChannel.
+// The channel will be closed when the request is done.
+func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error { //nolint:gocognit,cyclop
 	if responseChannel == nil {
-		return fmt.Errorf("responseChannel must not be nil")
+		return ErrNilResponseChannel
 	}
 	if wg == nil {
-		return fmt.Errorf("wg must not be nil")
+		return ErrNilWaitGroup
 	}
 	if req == nil {
-		return fmt.Errorf("request must not be nil")
+		return ErrNilRequest
 	}
 
 	defer close(responseChannel)
@@ -130,7 +154,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(requestBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -149,7 +173,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return fmt.Errorf("unauthorized: check your API key")
+			return ErrUnauthorized
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -178,7 +202,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 		}
 
 		// Check if this is a data line
-		if bytes.HasPrefix(line, []byte("data: ")) {
+		if bytes.HasPrefix(line, []byte("data: ")) { //nolint:nestif
 			// Remove the "data: " prefix
 			data := bytes.TrimPrefix(line, []byte("data: "))
 			data = bytes.TrimSpace(data)
