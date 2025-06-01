@@ -257,8 +257,8 @@ func WithTopK(topK int) CompletionRequestOption {
 }
 
 // WithStream sets the stream option.
-// Determines whether or not to incrementally stream the response
-// with server-sent events with content-type: text/event-stream
+// Determines whether or not to incrementally stream the response.
+// with server-sent events with content-type: text/event-stream.
 func WithStream(stream bool) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.Stream = stream

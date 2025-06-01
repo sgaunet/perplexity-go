@@ -1,0 +1,18 @@
+---
+version: "2"
+# Configure which files to skip during linting
+run:
+  tests: false
+
+linters:
+  default: all
+
+  disable:
+    - wsl
+    - nlreturn
+    - depguard
+    - gochecknoinits
+    - gochecknoglobals
+    - forbidigo
+    - varnamelen
+    - exhaustruct
