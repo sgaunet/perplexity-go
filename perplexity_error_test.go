@@ -5,7 +5,7 @@ import (
 )
 
 func TestParseErrorMessage(t *testing.T) {
-	t.Run("ValidErrorResponse", func(t *testing.T) {
+	t.Run("ValidResponseError", func(t *testing.T) {
 		data := []byte(`{"error": {"message": "An error occurred", "type": "APIError", "code": 400}}`)
 		err := ParseErrorMessage(data)
 		if err == nil {
@@ -35,8 +35,8 @@ func TestParseErrorMessage(t *testing.T) {
 			t.Fatalf("expected an error, got nil")
 		}
 
-		if _, ok := err.(*ErrorResponse); ok {
-			t.Fatalf("expected a JSON unmarshal error, got *ErrorResponse")
+		if _, ok := err.(*ResponseError); ok {
+			t.Fatalf("expected a JSON unmarshal error, got *ResponseError")
 		}
 	})
 
@@ -47,8 +47,8 @@ func TestParseErrorMessage(t *testing.T) {
 			t.Fatalf("expected an error, got nil")
 		}
 
-		if _, ok := err.(*ErrorResponse); ok {
-			t.Fatalf("expected a JSON unmarshal error, got *ErrorResponse")
+		if _, ok := err.(*ResponseError); ok {
+			t.Fatalf("expected a JSON unmarshal error, got *ResponseError")
 		}
 	})
 
@@ -59,8 +59,8 @@ func TestParseErrorMessage(t *testing.T) {
 			t.Fatalf("expected an error, got nil")
 		}
 
-		if _, ok := err.(*ErrorResponse); ok {
-			t.Fatalf("expected a JSON unmarshal error, got *ErrorResponse")
+		if _, ok := err.(*ResponseError); ok {
+			t.Fatalf("expected a JSON unmarshal error, got *ResponseError")
 		}
 	})
 }
