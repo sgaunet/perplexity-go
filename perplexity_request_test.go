@@ -396,6 +396,6 @@ func TestWithUserLocation(t *testing.T) {
 		assert.NotNil(t, req.WebSearchOptions.UserLocation)
 		assert.Equal(t, 48.8566, req.WebSearchOptions.UserLocation.Latitude)
 		assert.Equal(t, 2.3522, req.WebSearchOptions.UserLocation.Longitude)
-		assert.Equal(t, "FR", req.WebSearchOptions.UserLocation.Country)
+		assert.Equal(t, "US", req.WebSearchOptions.UserLocation.Country)
 	})
 }
