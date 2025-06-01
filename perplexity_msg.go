@@ -65,6 +65,8 @@ func (m *Messages) AddAgentMessage(content string) error {
 	return nil
 }
 
+// GetMessages returns all messages including the system message (if any) as a slice of Message.
+// The system message is always included as the first message when present.
 func (m *Messages) GetMessages() []Message {
 	var result []Message
 	// system message is added in the first position

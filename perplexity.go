@@ -1,3 +1,5 @@
+// Package perplexity provides a Go client for interacting with the Perplexity AI API.
+// It supports both synchronous and streaming (SSE) completion requests.
 package perplexity
 
 import (
@@ -70,7 +72,7 @@ func (s *Client) SendCompletionRequest(req *CompletionRequest) (*CompletionRespo
 	return s.SendCompletionRequestWithContext(context.Background(), req)
 }
 
-// SendCompletionRequest sends a completion request to the Perplexity API.
+// SendCompletionRequestWithContext sends a completion request to the Perplexity API with the given context.
 func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *CompletionRequest) (*CompletionResponse, error) {
 	r := &CompletionResponse{}
 	if req == nil {
@@ -121,8 +123,8 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 	return s.SendSSEHTTPRequestWithContext(context.Background(), wg, req, responseChannel)
 }
 
-// SendSSEHTTPRequest sends a completion request to the Perplexity API using Server-Sent Events.
-// It writes each response (event) on the channel responseChannel
+// SendSSEHTTPRequestWithContext sends a completion request to the Perplexity API using Server-Sent Events with the given context.
+// It writes each response (event) on the provided responseChannel.
 // The channel will be closed when the request is done.
 func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
 	if responseChannel == nil {
