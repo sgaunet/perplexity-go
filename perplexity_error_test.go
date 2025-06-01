@@ -12,19 +12,19 @@ func TestParseErrorMessage(t *testing.T) {
 			t.Fatalf("expected an error, got nil")
 		}
 
-		errorResponse, ok := err.(*ErrorResponse)
+		responseError, ok := err.(*ResponseError)
 		if !ok {
-			t.Fatalf("expected error of type *ErrorResponse, got %T", err)
+			t.Fatalf("expected error of type *ResponseError, got %T", err)
 		}
 
-		if errorResponse.ErrorData.Message != "An error occurred" {
-			t.Errorf("expected message 'An error occurred', got '%s'", errorResponse.ErrorData.Message)
+		if responseError.ErrorData.Message != "An error occurred" {
+			t.Errorf("expected message 'An error occurred', got '%s'", responseError.ErrorData.Message)
 		}
-		if errorResponse.ErrorData.Type != "APIError" {
-			t.Errorf("expected type 'APIError', got '%s'", errorResponse.ErrorData.Type)
+		if responseError.ErrorData.Type != "APIError" {
+			t.Errorf("expected type 'APIError', got '%s'", responseError.ErrorData.Type)
 		}
-		if errorResponse.ErrorData.Code != 400 {
-			t.Errorf("expected code 400, got %d", errorResponse.ErrorData.Code)
+		if responseError.ErrorData.Code != 400 {
+			t.Errorf("expected code 400, got %d", responseError.ErrorData.Code)
 		}
 	})
 
