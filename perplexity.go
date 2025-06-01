@@ -24,8 +24,6 @@ const DefaultTimeout = 30 * time.Second
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
 
-const defaultSizeSSEResponse = 64000
-
 // Client is a client for the Perplexity API.
 type Client struct {
 	endpoint   string
@@ -125,7 +123,7 @@ func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, 
 // SendSSEHTTPRequestWithContext sends a completion request to the Perplexity API using Server-Sent Events with the given context.
 // It writes each response (event) on the provided responseChannel.
 // The channel will be closed when the request is done.
-func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
+func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error { //nolint:gocognit,cyclop
 	if responseChannel == nil {
 		return fmt.Errorf("responseChannel must not be nil")
 	}
@@ -192,7 +190,7 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 		}
 
 		// Check if this is a data line
-		if bytes.HasPrefix(line, []byte("data: ")) {
+		if bytes.HasPrefix(line, []byte("data: ")) { //nolint:nestif
 			// Remove the "data: " prefix
 			data := bytes.TrimPrefix(line, []byte("data: "))
 			data = bytes.TrimSpace(data)
