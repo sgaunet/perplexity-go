@@ -21,7 +21,7 @@ jobs:
         with:
           go-version: '>=1.24'
       - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.12.0
+        uses: jetify-com/devbox-install-action@v0.13.0
         with:
           enable-cache: true
           devbox-version: 0.14.0
