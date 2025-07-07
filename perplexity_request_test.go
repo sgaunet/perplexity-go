@@ -399,3 +399,260 @@ func TestWithUserLocation(t *testing.T) {
 		assert.Equal(t, "US", req.WebSearchOptions.UserLocation.Country)
 	})
 }
+
+func TestWithResponseFormat(t *testing.T) {
+	t.Run("creates a new CompletionRequest with response format", func(t *testing.T) {
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &perplexity.JSONSchemaConfig{
+				Schema: map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"name": map[string]interface{}{
+							"type": "string",
+						},
+					},
+				},
+			},
+		}
+		req := perplexity.NewCompletionRequest(perplexity.WithResponseFormat(responseFormat))
+		assert.Equal(t, responseFormat, req.ResponseFormat)
+	})
+}
+
+func TestWithJSONSchemaResponseFormat(t *testing.T) {
+	t.Run("creates a new CompletionRequest with JSON schema response format", func(t *testing.T) {
+		schema := map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type": "string",
+				},
+				"age": map[string]interface{}{
+					"type": "integer",
+				},
+			},
+		}
+		req := perplexity.NewCompletionRequest(perplexity.WithJSONSchemaResponseFormat(schema))
+		assert.NotNil(t, req.ResponseFormat)
+		assert.Equal(t, "json_schema", req.ResponseFormat.Type)
+		assert.NotNil(t, req.ResponseFormat.JSONSchema)
+		assert.Equal(t, schema, req.ResponseFormat.JSONSchema.Schema)
+		assert.Nil(t, req.ResponseFormat.Regex)
+	})
+}
+
+func TestWithRegexResponseFormat(t *testing.T) {
+	t.Run("creates a new CompletionRequest with regex response format", func(t *testing.T) {
+		regex := `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
+		req := perplexity.NewCompletionRequest(perplexity.WithRegexResponseFormat(regex))
+		assert.NotNil(t, req.ResponseFormat)
+		assert.Equal(t, "regex", req.ResponseFormat.Type)
+		assert.NotNil(t, req.ResponseFormat.Regex)
+		assert.Equal(t, regex, req.ResponseFormat.Regex.Regex)
+		assert.Nil(t, req.ResponseFormat.JSONSchema)
+	})
+}
+
+func TestStructuredOutputValidation(t *testing.T) {
+	t.Run("validates JSON schema structured output with sonar model", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		schema := map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"message": map[string]interface{}{
+					"type": "string",
+				},
+			},
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("sonar"),
+			perplexity.WithJSONSchemaResponseFormat(schema),
+		)
+		err := req.Validate()
+		assert.NoError(t, err)
+	})
+
+	t.Run("validates regex structured output with sonar model", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		regex := `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("sonar"),
+			perplexity.WithRegexResponseFormat(regex),
+		)
+		err := req.Validate()
+		assert.NoError(t, err)
+	})
+
+	t.Run("rejects structured output with non-sonar model", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		schema := map[string]interface{}{
+			"type": "object",
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("llama-3.1-sonar-small-128k-online"),
+			perplexity.WithJSONSchemaResponseFormat(schema),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "structured output (response_format) is only available for the 'sonar' model")
+	})
+
+	t.Run("rejects invalid json_schema configuration", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "json_schema",
+			// Missing JSONSchema config
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("sonar"),
+			perplexity.WithResponseFormat(responseFormat),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
+	})
+
+	t.Run("rejects invalid regex configuration", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "regex",
+			// Missing Regex config
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("sonar"),
+			perplexity.WithResponseFormat(responseFormat),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
+	})
+
+	t.Run("rejects mixed configuration", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &perplexity.JSONSchemaConfig{
+				Schema: map[string]interface{}{"type": "object"},
+			},
+			Regex: &perplexity.RegexConfig{
+				Regex: `\d+`,
+			},
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("sonar"),
+			perplexity.WithResponseFormat(responseFormat),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
+	})
+
+	t.Run("allows request without structured output", func(t *testing.T) {
+		msg := []perplexity.Message{
+			{
+				Role:    "user",
+				Content: "hello",
+			},
+		}
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages(msg),
+			perplexity.WithModel("llama-3.1-sonar-small-128k-online"),
+		)
+		err := req.Validate()
+		assert.NoError(t, err)
+	})
+}
+
+func TestStructuredOutputJSONSerialization(t *testing.T) {
+	t.Run("serializes JSON schema response format correctly", func(t *testing.T) {
+		schema := map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type": "string",
+				},
+			},
+		}
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &perplexity.JSONSchemaConfig{
+				Schema: schema,
+			},
+		}
+		
+		data, err := json.Marshal(responseFormat)
+		assert.NoError(t, err)
+		
+		var result map[string]interface{}
+		err = json.Unmarshal(data, &result)
+		assert.NoError(t, err)
+		
+		assert.Equal(t, "json_schema", result["type"])
+		assert.NotNil(t, result["json_schema"])
+		assert.Nil(t, result["regex"])
+		
+		jsonSchema := result["json_schema"].(map[string]interface{})
+		assert.Equal(t, schema, jsonSchema["schema"])
+	})
+
+	t.Run("serializes regex response format correctly", func(t *testing.T) {
+		regex := `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
+		responseFormat := &perplexity.ResponseFormat{
+			Type: "regex",
+			Regex: &perplexity.RegexConfig{
+				Regex: regex,
+			},
+		}
+		
+		data, err := json.Marshal(responseFormat)
+		assert.NoError(t, err)
+		
+		var result map[string]interface{}
+		err = json.Unmarshal(data, &result)
+		assert.NoError(t, err)
+		
+		assert.Equal(t, "regex", result["type"])
+		assert.NotNil(t, result["regex"])
+		assert.Nil(t, result["json_schema"])
+		
+		regexConfig := result["regex"].(map[string]interface{})
+		assert.Equal(t, regex, regexConfig["regex"])
+	})
+}

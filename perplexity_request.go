@@ -13,6 +13,12 @@ var ErrSearchDomainFilter = errors.New("search domain filter must be less than o
 // ErrSearchRecencyFilter is returned when the search recency filter is invalid or incompatible.
 var ErrSearchRecencyFilter = errors.New("search recency filter must be one of month, week, day, hour and is incompatible with images")
 
+// ErrStructuredOutputModelRequirement is returned when structured output is used with a model other than "sonar".
+var ErrStructuredOutputModelRequirement = errors.New("structured output (response_format) is only available for the 'sonar' model")
+
+// ErrStructuredOutputFormatMismatch is returned when the response format type doesn't match the provided configuration.
+var ErrStructuredOutputFormatMismatch = errors.New("response format type must match the provided configuration (json_schema or regex)")
+
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
 	DefaultTemperature = 0.2
@@ -97,6 +103,11 @@ type CompletionRequest struct {
 
 	// WebSearchOptions: Optional. Controls web search context and user location for search refinement.
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty" validate:"omitempty"`
+
+	// ResponseFormat: Optional. Controls the format of the response output.
+	// Supports JSON Schema and Regex formats for structured outputs.
+	// Only available for the "sonar" model.
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty" validate:"omitempty"`
 }
 
 // WebSearchOptions specifies web search context size and user location for the request.
@@ -119,6 +130,30 @@ type UserLocation struct {
 	Longitude float64 `json:"longitude,omitempty" validate:"omitempty"`
 	// Country is the two-letter ISO country code of the user's location.
 	Country string `json:"country,omitempty" validate:"omitempty,len=2"`
+}
+
+// ResponseFormat specifies the format of the response output.
+type ResponseFormat struct {
+	// Type specifies the format type: "json_schema" or "regex"
+	Type string `json:"type" validate:"required,oneof=json_schema regex"`
+	// JSONSchema contains the JSON schema configuration when Type is "json_schema"
+	JSONSchema *JSONSchemaConfig `json:"json_schema,omitempty" validate:"omitempty"`
+	// Regex contains the regex configuration when Type is "regex"
+	Regex *RegexConfig `json:"regex,omitempty" validate:"omitempty"`
+}
+
+// JSONSchemaConfig contains the JSON schema for structured output.
+type JSONSchemaConfig struct {
+	// Schema is the JSON schema object that defines the expected output structure.
+	// It can be a Go struct, map, or any valid JSON schema.
+	Schema interface{} `json:"schema" validate:"required"`
+}
+
+// RegexConfig contains the regex pattern for structured output.
+type RegexConfig struct {
+	// Regex is the regular expression pattern that the output must match.
+	// Supports basic regex features like character classes, quantifiers, alternation, and groups.
+	Regex string `json:"regex" validate:"required"`
 }
 
 // DefaultCompletionRequest returns a default completion request.
@@ -297,6 +332,42 @@ func WithFrequencyPenalty(frequencyPenalty float64) CompletionRequestOption {
 	}
 }
 
+// WithResponseFormat sets the response format option.
+// Supports both JSON Schema and Regex formats for structured outputs.
+func WithResponseFormat(format *ResponseFormat) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ResponseFormat = format
+	}
+}
+
+// WithJSONSchemaResponseFormat sets the response format to JSON Schema.
+// The schema parameter can be a Go struct, map, or any valid JSON schema.
+// Only available for the "sonar" model.
+func WithJSONSchemaResponseFormat(schema interface{}) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ResponseFormat = &ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &JSONSchemaConfig{
+				Schema: schema,
+			},
+		}
+	}
+}
+
+// WithRegexResponseFormat sets the response format to Regex.
+// The regex parameter should be a valid regular expression pattern.
+// Only available for the "sonar" model.
+func WithRegexResponseFormat(regex string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ResponseFormat = &ResponseFormat{
+			Type: "regex",
+			Regex: &RegexConfig{
+				Regex: regex,
+			},
+		}
+	}
+}
+
 // NewCompletionRequest creates a new completion request.
 func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
 	r := DefaultCompletionRequest()
@@ -316,6 +387,9 @@ func (r *CompletionRequest) Validate() error {
 		return err
 	}
 	if err := r.ValidateSearchRecencyFilter(); err != nil {
+		return err
+	}
+	if err := r.ValidateStructuredOutput(); err != nil {
 		return err
 	}
 	return nil
@@ -342,5 +416,39 @@ func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
 			return ErrSearchRecencyFilter
 		}
 	}
+	return nil
+}
+
+// ValidateStructuredOutput validates the structured output configuration.
+func (r *CompletionRequest) ValidateStructuredOutput() error {
+	if r.ResponseFormat == nil {
+		return nil
+	}
+	
+	// Structured output is only available for the "sonar" model
+	if r.Model != "sonar" {
+		return ErrStructuredOutputModelRequirement
+	}
+	
+	// Validate the response format configuration matches the type
+	switch r.ResponseFormat.Type {
+	case "json_schema":
+		if r.ResponseFormat.JSONSchema == nil {
+			return ErrStructuredOutputFormatMismatch
+		}
+		if r.ResponseFormat.Regex != nil {
+			return ErrStructuredOutputFormatMismatch
+		}
+	case "regex":
+		if r.ResponseFormat.Regex == nil {
+			return ErrStructuredOutputFormatMismatch
+		}
+		if r.ResponseFormat.JSONSchema != nil {
+			return ErrStructuredOutputFormatMismatch
+		}
+	default:
+		return ErrStructuredOutputFormatMismatch
+	}
+	
 	return nil
 }
