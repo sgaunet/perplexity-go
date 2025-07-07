@@ -69,6 +69,89 @@ func main() {
 	}
 	fmt.Println("*************")
 
+	// Example of structured output with JSON Schema
+	fmt.Println("\n=== JSON Schema Structured Output Example ===")
+	
+	// Define a JSON schema for structured response
+	personSchema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"name": map[string]interface{}{
+				"type":        "string",
+				"description": "The person's full name",
+			},
+			"age": map[string]interface{}{
+				"type":        "integer",
+				"description": "The person's age in years",
+			},
+			"profession": map[string]interface{}{
+				"type":        "string",
+				"description": "The person's job or profession",
+			},
+		},
+		"required": []string{"name", "age", "profession"},
+	}
+	
+	structuredMsg := []perplexity.Message{
+		{
+			Role:    "user",
+			Content: "Tell me about Albert Einstein. Please format your response as a JSON object with name, age at death, and profession.",
+		},
+	}
+	
+	// Create a request with JSON schema structured output
+	structuredReq := perplexity.NewCompletionRequest(
+		perplexity.WithMessages(structuredMsg),
+		perplexity.WithModel("sonar"), // Note: structured output only works with "sonar" model
+		perplexity.WithJSONSchemaResponseFormat(personSchema),
+	)
+	
+	if err := structuredReq.Validate(); err != nil {
+		fmt.Printf("Structured request validation error: %v\n", err)
+		os.Exit(1)
+	}
+	
+	structuredRes, err := client.SendCompletionRequest(structuredReq)
+	if err != nil {
+		fmt.Printf("Structured API error: %v\n", err)
+		os.Exit(1)
+	}
+	
+	fmt.Println("JSON Schema Response:")
+	fmt.Println(structuredRes.GetLastContent())
+	
+	// Example of structured output with Regex
+	fmt.Println("\n=== Regex Structured Output Example ===")
+	
+	regexMsg := []perplexity.Message{
+		{
+			Role:    "user",
+			Content: "What is the IP address of Google's primary DNS server? Please respond with just the IP address in the format x.x.x.x",
+		},
+	}
+	
+	// Create a request with regex structured output for IP addresses
+	regexReq := perplexity.NewCompletionRequest(
+		perplexity.WithMessages(regexMsg),
+		perplexity.WithModel("sonar"),
+		perplexity.WithRegexResponseFormat(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`),
+	)
+	
+	if err := regexReq.Validate(); err != nil {
+		fmt.Printf("Regex request validation error: %v\n", err)
+		os.Exit(1)
+	}
+	
+	regexRes, err := client.SendCompletionRequest(regexReq)
+	if err != nil {
+		fmt.Printf("Regex API error: %v\n", err)
+		os.Exit(1)
+	}
+	
+	fmt.Println("Regex Response:")
+	fmt.Println(regexRes.GetLastContent())
+	fmt.Println("*************")
+
 	// Support also server-sent events
 	req = perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithStream(true))
 	err = req.Validate()
