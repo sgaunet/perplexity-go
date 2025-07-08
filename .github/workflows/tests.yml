@@ -1,7 +1,6 @@
 name: Tests
 on:
   push:
-    branches: [v2]
 
 jobs:
   test:
