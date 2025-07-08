@@ -153,18 +153,24 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 
 		var wg sync.WaitGroup
 		chResponses := make(chan perplexity.CompletionResponse, 5)
-		fullResponse := perplexity.CompletionResponse{}
+		errorChan := make(chan error, 1)
+		responseChan := make(chan perplexity.CompletionResponse, 1)
 
 		wg.Add(1)
 		go func() {
-			err = r.SendSSEHTTPRequest(&wg, req, chResponses)
+			err := r.SendSSEHTTPRequest(&wg, req, chResponses)
+			errorChan <- err
+			var lastResponse perplexity.CompletionResponse
 			for msg := range chResponses {
-				fullResponse = msg
+				lastResponse = msg
 			}
+			responseChan <- lastResponse
 		}()
 
 		wg.Wait()
-		assert.Nil(t, err)
+		finalErr := <-errorChan
+		fullResponse := <-responseChan
+		assert.Nil(t, finalErr)
 		assert.Equal(t, fullResponse, perplexity.CompletionResponse{})
 	})
 
@@ -193,21 +199,30 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 
 		var wg sync.WaitGroup
 		chResponses := make(chan perplexity.CompletionResponse, 5)
-		fullResponse := perplexity.CompletionResponse{}
+		errorChan := make(chan error, 1)
+		responseChan := make(chan perplexity.CompletionResponse, 1)
+		eventCountChan := make(chan int, 1)
 
-		nbEvents := 0
 		wg.Add(1)
 		go func() {
-			err = r.SendSSEHTTPRequest(&wg, req, chResponses)
+			err := r.SendSSEHTTPRequest(&wg, req, chResponses)
+			errorChan <- err
+			var lastResponse perplexity.CompletionResponse
+			eventCount := 0
 			for msg := range chResponses {
-				fullResponse = msg
-				nbEvents++
+				lastResponse = msg
+				eventCount++
 			}
+			responseChan <- lastResponse
+			eventCountChan <- eventCount
 		}()
 
 		wg.Wait()
+		nbEvents := <-eventCountChan
+		finalErr := <-errorChan
+		fullResponse := <-responseChan
 		assert.Equal(t, 2, nbEvents)
-		assert.Nil(t, err)
+		assert.Nil(t, finalErr)
 		assert.Equal(t, []perplexity.Choice{
 			{
 				Message: perplexity.Message{
