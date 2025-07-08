@@ -19,6 +19,9 @@ var ErrStructuredOutputModelRequirement = errors.New("structured output (respons
 // ErrStructuredOutputFormatMismatch is returned when the response format type doesn't match the provided configuration.
 var ErrStructuredOutputFormatMismatch = errors.New("response format type must match the provided configuration (json_schema or regex)")
 
+// ErrStructuredOutputRegexAndImages is returned when regex and images are used together.
+var ErrStructuredOutputRegexAndImages = errors.New("regex and images are not compatible")
+
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
 	DefaultTemperature = 0.2
@@ -187,12 +190,12 @@ func WithWebSearchOptions(opts *WebSearchOptions) CompletionRequestOption {
 		if opts == nil {
 			return
 		}
-		
+
 		// Apply search context size if set
 		if opts.SearchContextSize != "" {
 			WithSearchContextSize(opts.SearchContextSize)(r)
 		}
-		
+
 		// Apply user location if set
 		if opts.UserLocation != nil {
 			WithUserLocation(
@@ -424,12 +427,12 @@ func (r *CompletionRequest) ValidateStructuredOutput() error {
 	if r.ResponseFormat == nil {
 		return nil
 	}
-	
+
 	// Structured output is only available for the "sonar" model
 	if r.Model != "sonar" {
 		return ErrStructuredOutputModelRequirement
 	}
-	
+
 	// Validate the response format configuration matches the type
 	switch r.ResponseFormat.Type {
 	case "json_schema":
@@ -446,9 +449,12 @@ func (r *CompletionRequest) ValidateStructuredOutput() error {
 		if r.ResponseFormat.JSONSchema != nil {
 			return ErrStructuredOutputFormatMismatch
 		}
+		if r.ReturnImages {
+			return ErrStructuredOutputRegexAndImages
+		}
 	default:
 		return ErrStructuredOutputFormatMismatch
 	}
-	
+
 	return nil
 }
