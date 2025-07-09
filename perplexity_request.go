@@ -428,33 +428,58 @@ func (r *CompletionRequest) ValidateStructuredOutput() error {
 		return nil
 	}
 
-	// Structured output is only available for the "sonar" model
+	if err := r.validateStructuredOutputModel(); err != nil {
+		return err
+	}
+
+	if err := r.validateStructuredOutputFormat(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateStructuredOutputModel validates that the model supports structured output.
+func (r *CompletionRequest) validateStructuredOutputModel() error {
 	if r.Model != "sonar" {
 		return ErrStructuredOutputModelRequirement
 	}
+	return nil
+}
 
-	// Validate the response format configuration matches the type
+// validateStructuredOutputFormat validates the response format configuration.
+func (r *CompletionRequest) validateStructuredOutputFormat() error {
 	switch r.ResponseFormat.Type {
 	case "json_schema":
-		if r.ResponseFormat.JSONSchema == nil {
-			return ErrStructuredOutputFormatMismatch
-		}
-		if r.ResponseFormat.Regex != nil {
-			return ErrStructuredOutputFormatMismatch
-		}
+		return r.validateJSONSchemaFormat()
 	case "regex":
-		if r.ResponseFormat.Regex == nil {
-			return ErrStructuredOutputFormatMismatch
-		}
-		if r.ResponseFormat.JSONSchema != nil {
-			return ErrStructuredOutputFormatMismatch
-		}
-		if r.ReturnImages {
-			return ErrStructuredOutputRegexAndImages
-		}
+		return r.validateRegexFormat()
 	default:
 		return ErrStructuredOutputFormatMismatch
 	}
+}
 
+// validateJSONSchemaFormat validates JSON Schema format configuration.
+func (r *CompletionRequest) validateJSONSchemaFormat() error {
+	if r.ResponseFormat.JSONSchema == nil {
+		return ErrStructuredOutputFormatMismatch
+	}
+	if r.ResponseFormat.Regex != nil {
+		return ErrStructuredOutputFormatMismatch
+	}
+	return nil
+}
+
+// validateRegexFormat validates Regex format configuration.
+func (r *CompletionRequest) validateRegexFormat() error {
+	if r.ResponseFormat.Regex == nil {
+		return ErrStructuredOutputFormatMismatch
+	}
+	if r.ResponseFormat.JSONSchema != nil {
+		return ErrStructuredOutputFormatMismatch
+	}
+	if r.ReturnImages {
+		return ErrStructuredOutputRegexAndImages
+	}
 	return nil
 }
