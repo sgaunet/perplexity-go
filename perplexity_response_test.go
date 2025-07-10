@@ -99,3 +99,91 @@ func TestGetCitations(t *testing.T) {
 		assert.Equal(t, content.GetCitations(), []string{"citation1", "citation2"})
 	})
 }
+
+func TestGetSearchResults(t *testing.T) {
+	t.Run("empty response returns empty search results", func(t *testing.T) {
+		content := perplexity.CompletionResponse{}
+		assert.Equal(t, content.GetSearchResults(), []perplexity.SearchResult{})
+	})
+
+	t.Run("nil search results returns empty search results", func(t *testing.T) {
+		content := perplexity.CompletionResponse{
+			SearchResults: nil,
+		}
+		assert.Equal(t, content.GetSearchResults(), []perplexity.SearchResult{})
+	})
+
+	t.Run("case with real search results", func(t *testing.T) {
+		searchResults := []perplexity.SearchResult{
+			{
+				Title: "Test Article 1",
+				URL:   "https://example.com/article1",
+				Date:  stringPtr("2024-01-01"),
+			},
+			{
+				Title:       "Test Article 2",
+				URL:         "https://example.com/article2",
+				LastUpdated: stringPtr("2024-01-02"),
+			},
+		}
+		content := perplexity.CompletionResponse{
+			SearchResults: &searchResults,
+		}
+		assert.Equal(t, content.GetSearchResults(), searchResults)
+	})
+}
+
+// stringPtr returns a pointer to a string value
+func stringPtr(s string) *string {
+	return &s
+}
+
+func TestSearchResultString(t *testing.T) {
+	t.Run("nil search result returns empty string", func(t *testing.T) {
+		var sr *perplexity.SearchResult
+		assert.Equal(t, "", sr.String())
+	})
+
+	t.Run("search result with title only", func(t *testing.T) {
+		sr := &perplexity.SearchResult{
+			Title: "Test Article",
+		}
+		assert.Equal(t, "Test Article", sr.String())
+	})
+
+	t.Run("search result with title and URL", func(t *testing.T) {
+		sr := &perplexity.SearchResult{
+			Title: "Test Article",
+			URL:   "https://example.com/article",
+		}
+		assert.Equal(t, "Test Article (https://example.com/article)", sr.String())
+	})
+
+	t.Run("search result with title, URL, and date", func(t *testing.T) {
+		sr := &perplexity.SearchResult{
+			Title: "Test Article",
+			URL:   "https://example.com/article",
+			Date:  stringPtr("2024-01-01"),
+		}
+		assert.Equal(t, "Test Article (https://example.com/article) - 2024-01-01", sr.String())
+	})
+
+	t.Run("search result with title, URL, and last updated", func(t *testing.T) {
+		sr := &perplexity.SearchResult{
+			Title:       "Test Article",
+			URL:         "https://example.com/article",
+			LastUpdated: stringPtr("2024-01-02"),
+		}
+		assert.Equal(t, "Test Article (https://example.com/article) (updated: 2024-01-02)", sr.String())
+	})
+
+	t.Run("search result with all fields", func(t *testing.T) {
+		sr := &perplexity.SearchResult{
+			Title:       "Test Article",
+			URL:         "https://example.com/article",
+			Date:        stringPtr("2024-01-01"),
+			LastUpdated: stringPtr("2024-01-02"),
+		}
+		assert.Equal(t, "Test Article (https://example.com/article) - 2024-01-01 (updated: 2024-01-02)", sr.String())
+	})
+}

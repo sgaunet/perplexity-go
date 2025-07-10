@@ -67,11 +67,17 @@ func main() {
 			fmt.Printf("%d. %s\n", i+1, c)
 		}
 	}
+	if len(res.GetSearchResults()) > 0 {
+		fmt.Println("\n=== Search Results ===")
+		for i, sr := range res.GetSearchResults() {
+			fmt.Printf("%d. %s\n", i+1, sr.String())
+		}
+	}
 	fmt.Println("*************")
 
 	// Example of structured output with JSON Schema
 	fmt.Println("\n=== JSON Schema Structured Output Example ===")
-	
+
 	// Define a JSON schema for structured response
 	personSchema := map[string]interface{}{
 		"type": "object",
