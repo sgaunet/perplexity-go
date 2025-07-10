@@ -9,7 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// Error definitions for CompletionRequest validation
+// Error definitions for CompletionRequest validation.
 var (
 	// ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
 	ErrSearchDomainFilter = errors.New("search domain filter must be less than or equal to 3")
@@ -209,7 +209,8 @@ func (v *RequestValidator) validateImageDomainFilter(req *CompletionRequest) err
 	}
 
 	// Check list length (≤10 entries)
-	if len(req.ImageDomainFilter) > 10 {
+	maxNumberOfDomains := 10
+	if len(req.ImageDomainFilter) > maxNumberOfDomains {
 		return ErrImageDomainFilterTooLong
 	}
 
