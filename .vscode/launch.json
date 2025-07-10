@@ -10,9 +10,9 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/main.go",
-      // "env": {
-      //     "DBDSN": "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
-      // },
+      "env": {
+        "PPLX_API_KEY": "{YOUR_PERPLEXITY_API_KEY}"
+      },
       "args": []
     }
   ]

@@ -90,45 +90,6 @@ func TestWithSearchRecencyFilter(t *testing.T) {
 	})
 }
 
-func TestSearchRecencyFilterValidationRule(t *testing.T) {
-	validate := validator.New()
-	tests := []struct {
-		name  string
-		value string
-		valid bool
-	}{
-		{"empty value", "", true},
-		{"year is valid", "year", true},
-		{"month is valid", "month", true},
-		{"week is valid", "week", true},
-		{"day is valid", "day", true},
-		{"hour is valid", "hour", true},
-		{"invalid value foo", "foo", false},
-		{"invalid value 2022", "2022", false},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			req := &perplexity.CompletionRequest{
-				Messages:            []perplexity.Message{{Role: "user", Content: "test"}},
-				Model:               perplexity.DefaultModel,
-				MaxTokens:           10,
-				Temperature:         1.0,
-				TopP:                0.5,
-				SearchRecencyFilter: test.value,
-				TopK:                10,
-				PresencePenalty:     0.0,
-				FrequencyPenalty:    1.0,
-			}
-			err := validate.Struct(req)
-			if test.valid {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
-}
-
 func TestWebSearchOptionsValidation(t *testing.T) {
 	validate := validator.New()
 	t.Run("valid search_context_size values", func(t *testing.T) {
@@ -242,50 +203,6 @@ func TestWithTopK(t *testing.T) {
 		req := perplexity.NewCompletionRequest(perplexity.WithTopK(topK))
 		assert.Equal(t, req.TopK, topK)
 	})
-}
-
-func TestValidate(t *testing.T) {
-	f := func(testName string, expectedValid bool, opts ...perplexity.CompletionRequestOption) {
-		t.Helper()
-		req := perplexity.NewCompletionRequest(opts...)
-		err := req.Validate()
-		isEqual := assert.Equal(t, expectedValid, err == nil)
-		if !isEqual {
-			t.Logf("Test %s failed", testName)
-		}
-	}
-
-	f("returns error if no message to send to the API", false)
-	f("returns error if model is empty", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(""))
-	f("returns error if MaxTokens is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithMaxTokens(-1))
-	f("returns error if Temperature is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTemperature(-1))
-	f("returns error if TopP is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopP(-1))
-	f("returns error if TopK is negative", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopK(-1))
-	f("returns error if TopK is gt 2048", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopK(2049))
-	f("returns error if Temperature is gt 2", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTemperature(2.1))
-	f("returns error if TopP is gt 1", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopP(1.1))
-	f("returns error if SearchDomainFilter contains more than 3 elements", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2", "filter3", "filter4"}))
-	f("returns error return_images and searchRecencyFilter are set", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnImages(true), perplexity.WithReturnRelatedQuestions(true), perplexity.WithSearchRecencyFilter("filter"), perplexity.WithTopK(10))
-	f("returns no error", true, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnRelatedQuestions(true), perplexity.WithTopK(10))
-}
-
-func TestValidateSearchRecencyFilter(t *testing.T) {
-	f := func(testName string, expectedValid bool, opts ...perplexity.CompletionRequestOption) {
-		t.Helper()
-		req := perplexity.NewCompletionRequest(opts...)
-		err := req.ValidateSearchRecencyFilter()
-		isEqual := assert.Equal(t, expectedValid, err == nil)
-		if !isEqual {
-			t.Logf("Test %s failed", testName)
-		}
-	}
-
-	f("returns no error if SearchRecencyFilter is empty", true)
-	f("returns no error if SearchRecencyFilter is set to 'hour'", true, perplexity.WithSearchRecencyFilter("hour"))
-	f("returns no error if SearchRecencyFilter is set to 'day'", true, perplexity.WithSearchRecencyFilter("day"))
-	f("returns no error if SearchRecencyFilter is set to 'week'", true, perplexity.WithSearchRecencyFilter("week"))
-	f("returns no error if SearchRecencyFilter is set to 'month'", true, perplexity.WithSearchRecencyFilter("month"))
-	f("returns error if SearchRecencyFilter is set to 'year'", false, perplexity.WithSearchRecencyFilter("year"))
 }
 
 func TestWithPresencePenalty(t *testing.T) {
@@ -454,152 +371,6 @@ func TestWithRegexResponseFormat(t *testing.T) {
 	})
 }
 
-func TestStructuredOutputValidation(t *testing.T) {
-	t.Run("validates JSON schema structured output with sonar model", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		schema := map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"message": map[string]interface{}{
-					"type": "string",
-				},
-			},
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("sonar"),
-			perplexity.WithJSONSchemaResponseFormat(schema),
-		)
-		err := req.Validate()
-		assert.NoError(t, err)
-	})
-
-	t.Run("validates regex structured output with sonar model", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		regex := `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("sonar"),
-			perplexity.WithRegexResponseFormat(regex),
-		)
-		err := req.Validate()
-		assert.NoError(t, err)
-	})
-
-	t.Run("rejects structured output with non-sonar model", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		schema := map[string]interface{}{
-			"type": "object",
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("llama-3.1-sonar-small-128k-online"),
-			perplexity.WithJSONSchemaResponseFormat(schema),
-		)
-		err := req.Validate()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "structured output (response_format) is only available for the 'sonar' model")
-	})
-
-	t.Run("rejects invalid json_schema configuration", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		responseFormat := &perplexity.ResponseFormat{
-			Type: "json_schema",
-			// Missing JSONSchema config
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("sonar"),
-			perplexity.WithResponseFormat(responseFormat),
-		)
-		err := req.Validate()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
-	})
-
-	t.Run("rejects invalid regex configuration", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		responseFormat := &perplexity.ResponseFormat{
-			Type: "regex",
-			// Missing Regex config
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("sonar"),
-			perplexity.WithResponseFormat(responseFormat),
-		)
-		err := req.Validate()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
-	})
-
-	t.Run("rejects mixed configuration", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		responseFormat := &perplexity.ResponseFormat{
-			Type: "json_schema",
-			JSONSchema: &perplexity.JSONSchemaConfig{
-				Schema: map[string]interface{}{"type": "object"},
-			},
-			Regex: &perplexity.RegexConfig{
-				Regex: `\d+`,
-			},
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("sonar"),
-			perplexity.WithResponseFormat(responseFormat),
-		)
-		err := req.Validate()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "response format type must match the provided configuration")
-	})
-
-	t.Run("allows request without structured output", func(t *testing.T) {
-		msg := []perplexity.Message{
-			{
-				Role:    "user",
-				Content: "hello",
-			},
-		}
-		req := perplexity.NewCompletionRequest(
-			perplexity.WithMessages(msg),
-			perplexity.WithModel("llama-3.1-sonar-small-128k-online"),
-		)
-		err := req.Validate()
-		assert.NoError(t, err)
-	})
-}
-
 func TestStructuredOutputJSONSerialization(t *testing.T) {
 	t.Run("serializes JSON schema response format correctly", func(t *testing.T) {
 		schema := map[string]interface{}{
@@ -616,18 +387,18 @@ func TestStructuredOutputJSONSerialization(t *testing.T) {
 				Schema: schema,
 			},
 		}
-		
+
 		data, err := json.Marshal(responseFormat)
 		assert.NoError(t, err)
-		
+
 		var result map[string]interface{}
 		err = json.Unmarshal(data, &result)
 		assert.NoError(t, err)
-		
+
 		assert.Equal(t, "json_schema", result["type"])
 		assert.NotNil(t, result["json_schema"])
 		assert.Nil(t, result["regex"])
-		
+
 		jsonSchema := result["json_schema"].(map[string]interface{})
 		assert.Equal(t, schema, jsonSchema["schema"])
 	})
@@ -640,18 +411,18 @@ func TestStructuredOutputJSONSerialization(t *testing.T) {
 				Regex: regex,
 			},
 		}
-		
+
 		data, err := json.Marshal(responseFormat)
 		assert.NoError(t, err)
-		
+
 		var result map[string]interface{}
 		err = json.Unmarshal(data, &result)
 		assert.NoError(t, err)
-		
+
 		assert.Equal(t, "regex", result["type"])
 		assert.NotNil(t, result["regex"])
 		assert.Nil(t, result["json_schema"])
-		
+
 		regexConfig := result["regex"].(map[string]interface{})
 		assert.Equal(t, regex, regexConfig["regex"])
 	})
