@@ -9,6 +9,11 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const (
+	// MaxLengthOfDomainFilter is the maximum number of domains allowed in the search domain filter.
+	MaxLengthOfDomainFilter = 10
+)
+
 // Error definitions for CompletionRequest validation.
 var (
 	// ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
@@ -113,10 +118,7 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 
 // validateSearchDomainFilter validates the search domain filter.
 func (v *RequestValidator) validateSearchDomainFilter(req *CompletionRequest) error {
-	if len(req.SearchDomainFilter) > MaxLengthOfSearchDomainFilter {
-		return ErrSearchDomainFilter
-	}
-	return nil
+	return validateDomainList(req.SearchDomainFilter)
 }
 
 // validateSearchRecencyFilter validates the search recency filter.
@@ -199,24 +201,7 @@ func (v *RequestValidator) validateRegexFormat(req *CompletionRequest) error {
 
 // validateImageDomainFilter validates the image domain filter.
 func (v *RequestValidator) validateImageDomainFilter(req *CompletionRequest) error {
-	if len(req.ImageDomainFilter) == 0 {
-		return nil
-	}
-
-	// Check list length (≤10 entries)
-	maxNumberOfDomains := 10
-	if len(req.ImageDomainFilter) > maxNumberOfDomains {
-		return ErrImageDomainFilterTooLong
-	}
-
-	// Validate each domain
-	for _, domain := range req.ImageDomainFilter {
-		if err := validateImageDomain(domain); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return validateDomainList(req.ImageDomainFilter)
 }
 
 // validateImageFormatFilter validates the image format filter.
@@ -235,8 +220,27 @@ func (v *RequestValidator) validateImageFormatFilter(req *CompletionRequest) err
 	return nil
 }
 
-// validateImageDomain validates a single image domain filter entry.
-func validateImageDomain(domain string) error {
+func validateDomainList(domainList []string) error {
+	if len(domainList) == 0 {
+		return nil
+	}
+
+	if len(domainList) > MaxLengthOfDomainFilter {
+		return ErrImageDomainFilterTooLong
+	}
+
+	// Validate each domain
+	for _, domain := range domainList {
+		if err := validateDomain(domain); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateDomain validates a single image domain filter entry.
+func validateDomain(domain string) error {
 	if domain == "" {
 		return ErrImageDomainFilterEmpty
 	}

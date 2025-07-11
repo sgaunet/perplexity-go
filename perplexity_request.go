@@ -21,9 +21,6 @@ const (
 
 	// DefaultSearchRecencyFilter is the default search recency filter value.
 	DefaultSearchRecencyFilter = "month"
-
-	// MaxLengthOfSearchDomainFilter is the maximum number of domains allowed in the search domain filter.
-	MaxLengthOfSearchDomainFilter = 3
 )
 
 // CompletionRequest is a request object for the Perplexity API.
@@ -49,8 +46,8 @@ type CompletionRequest struct {
 	// Required range: 0 < x < 1
 	TopP float64 `json:"top_p" validate:"gt=0,lt=1"`
 	// SearchDomainFilter: Given a list of domains, limit the citations used by the online model
-	// to URLs from the specified domains. Currently limited to only 3 domains for whitelisting and blacklisting.
-	// For blacklisting add a - to the beginning of the domain string. This filter is in closed beta
+	// to URLs from the specified domains. Currently limited to only 3 domains for allowlisting and denylisting.
+	// For denylisting add a - to the beginning of the domain string. This filter is in closed beta
 	SearchDomainFilter []string `json:"search_domain_filter"`
 	// ReturnImages: Determines whether or not a request to an online model
 	// should return images. Images are in closed beta
