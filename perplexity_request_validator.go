@@ -16,9 +16,6 @@ const (
 
 // Error definitions for CompletionRequest validation.
 var (
-	// ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
-	ErrSearchDomainFilter = errors.New("search domain filter must be less than or equal to 3")
-
 	// ErrSearchRecencyFilter is returned when the search recency filter is invalid or incompatible.
 	ErrSearchRecencyFilter = errors.New("search recency filter must be one of month, week, day, hour and is incompatible with images")
 
@@ -40,23 +37,23 @@ var (
 	// ErrStructuredOutputRegexAndImages is returned when regex and images are used together.
 	ErrStructuredOutputRegexAndImages = errors.New("regex and images are not compatible")
 
-	// ErrImageDomainFilterTooLong is returned when the image domain filter exceeds the maximum allowed number of domains.
-	ErrImageDomainFilterTooLong = errors.New("image domain filter must be less than or equal to 10")
+	// ErrDomainFilterTooLong is returned when the domain filter exceeds the maximum allowed number of domains.
+	ErrDomainFilterTooLong = errors.New("domain filter must be less than or equal to 10")
 
-	// ErrImageDomainFilterEmpty is returned when an image domain filter entry is empty.
-	ErrImageDomainFilterEmpty = errors.New("image domain filter entry cannot be empty")
+	// ErrDomainFilterEmpty is returned when a domain filter entry is empty.
+	ErrDomainFilterEmpty = errors.New("domain filter entry cannot be empty")
 
-	// ErrImageDomainFilterProtocolNotAllowed is returned when an image domain filter entry includes a protocol prefix (http:// or https://).
-	ErrImageDomainFilterProtocolNotAllowed = errors.New("image domain filter entry cannot include http:// or https://")
+	// ErrDomainFilterProtocolNotAllowed is returned when a domain filter entry includes a protocol prefix (http:// or https://).
+	ErrDomainFilterProtocolNotAllowed = errors.New("domain filter entry cannot include http:// or https://")
 
-	// ErrImageDomainFilterWWWNotAllowed is returned when an image domain filter entry includes a www. prefix.
-	ErrImageDomainFilterWWWNotAllowed = errors.New("image domain filter entry cannot include www. prefix")
+	// ErrDomainFilterWWWNotAllowed is returned when a domain filter entry includes a www. prefix.
+	ErrDomainFilterWWWNotAllowed = errors.New("domain filter entry cannot include www. prefix")
 
-	// ErrImageDomainFilterSubdomainNotAllowed is returned when an image domain filter entry includes subdomains.
-	ErrImageDomainFilterSubdomainNotAllowed = errors.New("image domain filter entry cannot include subdomains")
+	// ErrDomainFilterSubdomainNotAllowed is returned when a domain filter entry includes subdomains.
+	ErrDomainFilterSubdomainNotAllowed = errors.New("domain filter entry cannot include subdomains")
 
-	// ErrImageDomainFilterInvalidFormat is returned when an image domain filter entry has an invalid format.
-	ErrImageDomainFilterInvalidFormat = errors.New("image domain filter entry must be a valid domain name (e.g., example.com or -gettyimages.com)")
+	// ErrDomainFilterInvalidFormat is returned when a domain filter entry has an invalid format.
+	ErrDomainFilterInvalidFormat = errors.New("domain filter entry must be a valid domain name (e.g., example.com or -gettyimages.com)")
 
 	// ErrImageFormatFilterTooLong is returned when the image format filter exceeds the maximum allowed number of formats.
 	ErrImageFormatFilterTooLong = errors.New("image format filter must be less than or equal to 10")
@@ -226,7 +223,7 @@ func validateDomainList(domainList []string) error {
 	}
 
 	if len(domainList) > MaxLengthOfDomainFilter {
-		return ErrImageDomainFilterTooLong
+		return ErrDomainFilterTooLong
 	}
 
 	// Validate each domain
@@ -239,10 +236,10 @@ func validateDomainList(domainList []string) error {
 	return nil
 }
 
-// validateDomain validates a single image domain filter entry.
+// validateDomain validates a single domain filter entry.
 func validateDomain(domain string) error {
 	if domain == "" {
-		return ErrImageDomainFilterEmpty
+		return ErrDomainFilterEmpty
 	}
 
 	// Check for valid domain format (simple domain names)
@@ -251,22 +248,22 @@ func validateDomain(domain string) error {
 
 	// Check for protocol prefixes (should not include http://, https://)
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
-		return ErrImageDomainFilterProtocolNotAllowed
+		return ErrDomainFilterProtocolNotAllowed
 	}
 
 	if strings.HasPrefix(domain, "www.") {
-		return ErrImageDomainFilterWWWNotAllowed
+		return ErrDomainFilterWWWNotAllowed
 	}
 
 	// Check for subdomains (should not include subdomains)
 	if strings.Count(domain, ".") > 1 {
-		return ErrImageDomainFilterSubdomainNotAllowed
+		return ErrDomainFilterSubdomainNotAllowed
 	}
 
 	// Basic domain validation (alphanumeric, hyphens, dots)
 	matched, err := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$`, domain)
 	if err != nil || !matched {
-		return ErrImageDomainFilterInvalidFormat
+		return ErrDomainFilterInvalidFormat
 	}
 
 	return nil

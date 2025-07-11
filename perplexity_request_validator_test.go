@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 	f("returns error if TopK is gt 2048", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopK(2049))
 	f("returns error if Temperature is gt 2", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTemperature(2.1))
 	f("returns error if TopP is gt 1", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithTopP(1.1))
-	f("returns error if SearchDomainFilter contains more than 3 elements", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2", "filter3", "filter4"}))
+	f("returns error if SearchDomainFilter contains more than 10 elements", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2", "filter3", "filter4", "filter5", "filte6", "filter7", "filter8", "filter9", "filter10", "filter11"}))
 	f("returns error return_images and searchRecencyFilter are set", false, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnImages(true), perplexity.WithReturnRelatedQuestions(true), perplexity.WithSearchRecencyFilter("filter"), perplexity.WithTopK(10))
 	f("returns no error", true, perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "hello"}}), perplexity.WithModel(perplexity.DefaultModel), perplexity.WithMaxTokens(10), perplexity.WithTemperature(0.5), perplexity.WithTopP(0.5), perplexity.WithSearchDomainFilter([]string{"filter1", "filter2"}), perplexity.WithReturnRelatedQuestions(true), perplexity.WithTopK(10))
 }
@@ -275,11 +275,11 @@ func TestValidateSearchDomainFilter(t *testing.T) {
 		req := perplexity.NewCompletionRequest(
 			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
 			perplexity.WithModel(perplexity.DefaultModel),
-			perplexity.WithSearchDomainFilter([]string{"domain1.com", "domain2.com", "domain3.com", "domain4.com"}),
+			perplexity.WithSearchDomainFilter([]string{"domain1.com", "domain2.com", "domain3.com", "domain4.com", "domain5.com", "domain6.com", "domain7.com", "domain8.com", "domain9.com", "domain10.com", "domain11.com"}),
 		)
 		err := req.ValidateSearchDomainFilter()
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrSearchDomainFilter, err)
+		assert.Equal(t, perplexity.ErrDomainFilterTooLong, err)
 	})
 }
 
@@ -333,7 +333,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterTooLong, err)
+		assert.Equal(t, perplexity.ErrDomainFilterTooLong, err)
 	})
 
 	t.Run("returns error for empty domain entry", func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterEmpty, err)
+		assert.Equal(t, perplexity.ErrDomainFilterEmpty, err)
 	})
 
 	t.Run("returns error for domain with protocol", func(t *testing.T) {
@@ -355,7 +355,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterProtocolNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterProtocolNotAllowed, err)
 	})
 
 	t.Run("returns error for domain with http protocol", func(t *testing.T) {
@@ -366,7 +366,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterProtocolNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterProtocolNotAllowed, err)
 	})
 
 	t.Run("returns error for domain with subdomain", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterSubdomainNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterSubdomainNotAllowed, err)
 	})
 
 	t.Run("returns error for invalid domain format", func(t *testing.T) {
@@ -388,7 +388,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterInvalidFormat, err)
+		assert.Equal(t, perplexity.ErrDomainFilterInvalidFormat, err)
 	})
 
 	t.Run("returns no error for exclusion prefix domain", func(t *testing.T) {
@@ -409,7 +409,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := validator.ValidateRequest(req)
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterInvalidFormat, err)
+		assert.Equal(t, perplexity.ErrDomainFilterInvalidFormat, err)
 	})
 
 	t.Run("returns error for domain with www prefix", func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := req.Validate()
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterWWWNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterWWWNotAllowed, err)
 	})
 
 	t.Run("returns error for domain with www prefix and exclusion", func(t *testing.T) {
@@ -431,7 +431,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := req.Validate()
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterWWWNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterWWWNotAllowed, err)
 	})
 
 	t.Run("returns error for domain with exclusion and http protocol", func(t *testing.T) {
@@ -442,7 +442,7 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		)
 		err := req.Validate()
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrImageDomainFilterProtocolNotAllowed, err)
+		assert.Equal(t, perplexity.ErrDomainFilterProtocolNotAllowed, err)
 	})
 }
 
@@ -623,11 +623,11 @@ func TestBackwardCompatibility(t *testing.T) {
 		req := perplexity.NewCompletionRequest(
 			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
 			perplexity.WithModel(perplexity.DefaultModel),
-			perplexity.WithSearchDomainFilter([]string{"domain1.com", "domain2.com", "domain3.com", "domain4.com"}),
+			perplexity.WithSearchDomainFilter([]string{"domain1.com", "domain2.com", "domain3.com", "domain4.com", "domain5.com", "domain6.com", "domain7.com", "domain8.com", "domain9.com", "domain10.com", "domain11.com"}),
 		)
 		err := req.ValidateSearchDomainFilter()
 		assert.Error(t, err)
-		assert.Equal(t, perplexity.ErrSearchDomainFilter, err)
+		assert.Equal(t, perplexity.ErrDomainFilterTooLong, err)
 	})
 
 	t.Run("ValidateSearchRecencyFilter method still works", func(t *testing.T) {
