@@ -79,14 +79,6 @@ func NewRequestValidator() *RequestValidator {
 	}
 }
 
-// DefaultValidator is a package-level validator instance for convenience.
-var DefaultValidator = NewRequestValidator()
-
-// Validate validates the completion request using the default validator.
-func (r *CompletionRequest) Validate() error {
-	return DefaultValidator.ValidateRequest(r)
-}
-
 // ValidateRequest validates a CompletionRequest using the validator instance.
 func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 	if req == nil {
@@ -297,25 +289,32 @@ func validateImageFormat(format string) error {
 	return nil
 }
 
-// Package-level convenience functions for backward compatibility
+// CompletionRequest validators for backward compatibility
+
+// Validate validates the completion request using the default validator.
+//
+//go:deprecated
+func (r *CompletionRequest) Validate() error {
+	return NewRequestValidator().ValidateRequest(r)
+}
 
 // ValidateSearchDomainFilter validates the search domain filter.
 //
 //go:deprecated
 func (r *CompletionRequest) ValidateSearchDomainFilter() error {
-	return DefaultValidator.validateSearchDomainFilter(r)
+	return NewRequestValidator().validateSearchDomainFilter(r)
 }
 
 // ValidateSearchRecencyFilter validates the search recency filter.
 //
 //go:deprecated
 func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
-	return DefaultValidator.validateSearchRecencyFilter(r)
+	return NewRequestValidator().validateSearchRecencyFilter(r)
 }
 
 // ValidateStructuredOutput validates the structured output configuration.
 //
 //go:deprecated
 func (r *CompletionRequest) ValidateStructuredOutput() error {
-	return DefaultValidator.validateStructuredOutput(r)
+	return NewRequestValidator().validateStructuredOutput(r)
 }

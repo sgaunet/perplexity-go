@@ -12,21 +12,22 @@ import (
 // This example demonstrates how to create a completion request with web search options.
 func main() {
 	client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
+	validator := perplexity.NewRequestValidator()
 
-	demonstrateBaseCompletion(client)
+	demonstrateBaseCompletion(client, validator)
 	printBreakToConsole()
 
-	demonstrateCompletionWithStructuredOutput(client)
+	demonstrateCompletionWithStructuredOutput(client, validator)
 	printBreakToConsole()
 
-	demonstrateCompletionWithImages(client)
+	demonstrateCompletionWithImages(client, validator)
 	printBreakToConsole()
 
-	demonstrateCompletionWithServerSentEvents(client)
+	demonstrateCompletionWithServerSentEvents(client, validator)
 
 }
 
-func demonstrateBaseCompletion(client *perplexity.Client) {
+func demonstrateBaseCompletion(client *perplexity.Client, validator *perplexity.RequestValidator) {
 	// Example message that would benefit from web search
 	msg := []perplexity.Message{
 		{
@@ -59,7 +60,7 @@ func demonstrateBaseCompletion(client *perplexity.Client) {
 	// )
 
 	// Validate the request
-	if err := perplexity.NewRequestValidator().ValidateRequest(req); err != nil {
+	if err := validator.ValidateRequest(req); err != nil {
 		fmt.Printf("Validation error: %v\n", err)
 		os.Exit(1)
 	}
@@ -88,10 +89,9 @@ func demonstrateBaseCompletion(client *perplexity.Client) {
 		}
 	}
 	fmt.Println(res.GetImages())
-	fmt.Println("*************")
 }
 
-func demonstrateCompletionWithStructuredOutput(client *perplexity.Client) {
+func demonstrateCompletionWithStructuredOutput(client *perplexity.Client, validator *perplexity.RequestValidator) {
 
 	// Example of structured output with JSON Schema
 	fmt.Println("\n=== JSON Schema Structured Output Example ===")
@@ -130,7 +130,7 @@ func demonstrateCompletionWithStructuredOutput(client *perplexity.Client) {
 		perplexity.WithJSONSchemaResponseFormat(personSchema),
 	)
 
-	if err := perplexity.NewRequestValidator().ValidateRequest(structuredReq); err != nil {
+	if err := validator.ValidateRequest(structuredReq); err != nil {
 		fmt.Printf("Structured request validation error: %v\n", err)
 		os.Exit(1)
 	}
@@ -161,7 +161,7 @@ func demonstrateCompletionWithStructuredOutput(client *perplexity.Client) {
 		perplexity.WithRegexResponseFormat(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`),
 	)
 
-	if err := perplexity.NewRequestValidator().ValidateRequest(regexReq); err != nil {
+	if err := validator.ValidateRequest(regexReq); err != nil {
 		fmt.Printf("Regex request validation error: %v\n", err)
 		os.Exit(1)
 	}
@@ -174,10 +174,9 @@ func demonstrateCompletionWithStructuredOutput(client *perplexity.Client) {
 
 	fmt.Println("Regex Response:")
 	fmt.Println(regexRes.GetLastContent())
-	fmt.Println("*************")
 }
 
-func demonstrateCompletionWithImages(client *perplexity.Client) {
+func demonstrateCompletionWithImages(client *perplexity.Client, validator *perplexity.RequestValidator) {
 	msg := []perplexity.Message{
 		{
 			Role:    "user",
@@ -191,7 +190,7 @@ func demonstrateCompletionWithImages(client *perplexity.Client) {
 		perplexity.WithReturnImages(true),
 	)
 
-	if err := perplexity.NewRequestValidator().ValidateRequest(req); err != nil {
+	if err := validator.ValidateRequest(req); err != nil {
 		fmt.Printf("Images request validation error: %v\n", err)
 		os.Exit(1)
 	}
@@ -206,11 +205,10 @@ func demonstrateCompletionWithImages(client *perplexity.Client) {
 	for _, img := range imagesRes.GetImages() {
 		fmt.Println(img.String())
 	}
-	fmt.Println("*************")
 }
 
 // Support also server-sent events
-func demonstrateCompletionWithServerSentEvents(client *perplexity.Client) {
+func demonstrateCompletionWithServerSentEvents(client *perplexity.Client, validator *perplexity.RequestValidator) {
 
 	msg := []perplexity.Message{
 		{
@@ -219,7 +217,7 @@ func demonstrateCompletionWithServerSentEvents(client *perplexity.Client) {
 		},
 	}
 	req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithStream(true))
-	err := perplexity.NewRequestValidator().ValidateRequest(req)
+	err := validator.ValidateRequest(req)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
