@@ -243,9 +243,7 @@ func validateImageDomain(domain string) error {
 
 	// Check for valid domain format (simple domain names)
 	// Allow exclusion prefix (-) but validate the rest
-	if strings.HasPrefix(domain, "-") {
-		domain = domain[1:]
-	}
+	domain = strings.TrimPrefix(domain, "-")
 
 	// Check for protocol prefixes (should not include http://, https://)
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
