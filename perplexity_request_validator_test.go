@@ -411,6 +411,39 @@ func TestValidateImageDomainFilter(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, perplexity.ErrImageDomainFilterInvalidFormat, err)
 	})
+
+	t.Run("returns error for domain with www prefix", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+			perplexity.WithImageDomainFilter([]string{"www.example.com"}),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrImageDomainFilterWWWNotAllowed, err)
+	})
+
+	t.Run("returns error for domain with www prefix and exclusion", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+			perplexity.WithImageDomainFilter([]string{"-www.example.com"}),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrImageDomainFilterWWWNotAllowed, err)
+	})
+
+	t.Run("returns error for domain with exclusion and http protocol", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+			perplexity.WithImageDomainFilter([]string{"-http://example.com"}),
+		)
+		err := req.Validate()
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrImageDomainFilterProtocolNotAllowed, err)
+	})
 }
 
 func TestValidateImageFormatFilter(t *testing.T) {

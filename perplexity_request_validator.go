@@ -44,6 +44,9 @@ var (
 	// ErrImageDomainFilterProtocolNotAllowed is returned when an image domain filter entry includes a protocol prefix (http:// or https://).
 	ErrImageDomainFilterProtocolNotAllowed = errors.New("image domain filter entry cannot include http:// or https://")
 
+	// ErrImageDomainFilterWWWNotAllowed is returned when an image domain filter entry includes a www. prefix.
+	ErrImageDomainFilterWWWNotAllowed = errors.New("image domain filter entry cannot include www. prefix")
+
 	// ErrImageDomainFilterSubdomainNotAllowed is returned when an image domain filter entry includes subdomains.
 	ErrImageDomainFilterSubdomainNotAllowed = errors.New("image domain filter entry cannot include subdomains")
 
@@ -238,9 +241,19 @@ func validateImageDomain(domain string) error {
 		return ErrImageDomainFilterEmpty
 	}
 
+	// Check for valid domain format (simple domain names)
+	// Allow exclusion prefix (-) but validate the rest
+	if strings.HasPrefix(domain, "-") {
+		domain = domain[1:]
+	}
+
 	// Check for protocol prefixes (should not include http://, https://)
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		return ErrImageDomainFilterProtocolNotAllowed
+	}
+
+	if strings.HasPrefix(domain, "www.") {
+		return ErrImageDomainFilterWWWNotAllowed
 	}
 
 	// Check for subdomains (should not include subdomains)
@@ -248,15 +261,8 @@ func validateImageDomain(domain string) error {
 		return ErrImageDomainFilterSubdomainNotAllowed
 	}
 
-	// Check for valid domain format (simple domain names)
-	// Allow exclusion prefix (-) but validate the rest
-	cleanDomain := domain
-	if strings.HasPrefix(domain, "-") {
-		cleanDomain = domain[1:]
-	}
-
 	// Basic domain validation (alphanumeric, hyphens, dots)
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$`, cleanDomain)
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$`, domain)
 	if err != nil || !matched {
 		return ErrImageDomainFilterInvalidFormat
 	}
