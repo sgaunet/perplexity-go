@@ -1,27 +1,5 @@
 package perplexity
 
-import (
-	"errors"
-	"fmt"
-
-	"github.com/go-playground/validator/v10"
-)
-
-// ErrSearchDomainFilter is returned when the search domain filter exceeds the maximum allowed number of domains.
-var ErrSearchDomainFilter = errors.New("search domain filter must be less than or equal to 3")
-
-// ErrSearchRecencyFilter is returned when the search recency filter is invalid or incompatible.
-var ErrSearchRecencyFilter = errors.New("search recency filter must be one of month, week, day, hour and is incompatible with images")
-
-// ErrStructuredOutputModelRequirement is returned when structured output is used with a model other than "sonar".
-var ErrStructuredOutputModelRequirement = errors.New("structured output (response_format) is only available for the 'sonar' model")
-
-// ErrStructuredOutputFormatMismatch is returned when the response format type doesn't match the provided configuration.
-var ErrStructuredOutputFormatMismatch = errors.New("response format type must match the provided configuration (json_schema or regex)")
-
-// ErrStructuredOutputRegexAndImages is returned when regex and images are used together.
-var ErrStructuredOutputRegexAndImages = errors.New("regex and images are not compatible")
-
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
 	DefaultTemperature = 0.2
@@ -43,9 +21,6 @@ const (
 
 	// DefaultSearchRecencyFilter is the default search recency filter value.
 	DefaultSearchRecencyFilter = "month"
-
-	// MaxLengthOfSearchDomainFilter is the maximum number of domains allowed in the search domain filter.
-	MaxLengthOfSearchDomainFilter = 3
 )
 
 // CompletionRequest is a request object for the Perplexity API.
@@ -71,8 +46,8 @@ type CompletionRequest struct {
 	// Required range: 0 < x < 1
 	TopP float64 `json:"top_p" validate:"gt=0,lt=1"`
 	// SearchDomainFilter: Given a list of domains, limit the citations used by the online model
-	// to URLs from the specified domains. Currently limited to only 3 domains for whitelisting and blacklisting.
-	// For blacklisting add a - to the beginning of the domain string. This filter is in closed beta
+	// to URLs from the specified domains. Currently limited to only 3 domains for allowlisting and denylisting.
+	// For denylisting add a - to the beginning of the domain string. This filter is in closed beta
 	SearchDomainFilter []string `json:"search_domain_filter"`
 	// ReturnImages: Determines whether or not a request to an online model
 	// should return images. Images are in closed beta
@@ -111,6 +86,25 @@ type CompletionRequest struct {
 	// Supports JSON Schema and Regex formats for structured outputs.
 	// Only available for the "sonar" model.
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty" validate:"omitempty"`
+
+	// ImageDomainFilter: Optional. Controls the domain filter for images.
+	// Only available for the "sonar" model.
+	// ImageDomainFilter: Optional. Controls the domain filter for images.
+	// Domain Filtering:
+	//   - prepending the url with - will exclude the domain
+	//   - Use simple domain names like example.com or -gettyimages.com
+	//   - Do not include http://, https://, or subdomains
+	// Filter Strategy:
+	//   - You can mix inclusion and exclusion in domain filters
+	//   - Keep lists short (≤10 entries) for performance and relevance
+	// Performance Notes:
+	//   - Filters may slightly increase response time
+	//   - Overly restrictive filters may reduce result quality or quantity
+	ImageDomainFilter []string `json:"image_domain_filter,omitempty" validate:"omitempty"`
+
+	// ImageFormatFilter: Optional. Controls the format filter for images.
+	// Only available for the "sonar" model.
+	ImageFormatFilter []string `json:"image_format_filter,omitempty" validate:"omitempty"`
 }
 
 // WebSearchOptions specifies web search context size and user location for the request.
@@ -371,6 +365,35 @@ func WithRegexResponseFormat(regex string) CompletionRequestOption {
 	}
 }
 
+// WithImageDomainFilter sets the image domain filter option.
+// Controls which domains to include or exclude for image generation.
+// Domain Filtering:
+//   - prepending the url with - will exclude the domain
+//   - Use simple domain names like example.com or -gettyimages.com
+//   - Do not include http://, https://, or subdomains
+//
+// Filter Strategy:
+//   - You can mix inclusion and exclusion in domain filters
+//   - Keep lists short (≤10 entries) for performance and relevance
+//
+// Performance Notes:
+//   - Filters may slightly increase response time
+//   - Overly restrictive filters may reduce result quality or quantity
+func WithImageDomainFilter(domains []string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ImageDomainFilter = domains
+	}
+}
+
+// WithImageFormatFilter sets the image format filter option.
+// Controls which image formats to include in the response.
+// Only available for the "sonar" model.
+func WithImageFormatFilter(formats []string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ImageFormatFilter = formats
+	}
+}
+
 // NewCompletionRequest creates a new completion request.
 func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
 	r := DefaultCompletionRequest()
@@ -378,108 +401,4 @@ func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
 		opt(r)
 	}
 	return r
-}
-
-// Validate validates the completion request.
-func (r *CompletionRequest) Validate() error {
-	validate := validator.New()
-	if err := validate.Struct(r); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
-	}
-	if err := r.ValidateSearchDomainFilter(); err != nil {
-		return err
-	}
-	if err := r.ValidateSearchRecencyFilter(); err != nil {
-		return err
-	}
-	if err := r.ValidateStructuredOutput(); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ValidateSearchDomainFilter validates the search domain filter.
-func (r *CompletionRequest) ValidateSearchDomainFilter() error {
-	if len(r.SearchDomainFilter) > MaxLengthOfSearchDomainFilter {
-		return ErrSearchDomainFilter
-	}
-	return nil
-}
-
-// ValidateSearchRecencyFilter validates the search recency filter.
-func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
-	if r.ReturnImages && r.SearchRecencyFilter != "" {
-		return ErrSearchRecencyFilter
-	}
-	if r.SearchRecencyFilter != "" {
-		switch r.SearchRecencyFilter {
-		case "month", "week", "day", "hour":
-			return nil
-		default:
-			return ErrSearchRecencyFilter
-		}
-	}
-	return nil
-}
-
-// ValidateStructuredOutput validates the structured output configuration.
-func (r *CompletionRequest) ValidateStructuredOutput() error {
-	if r.ResponseFormat == nil {
-		return nil
-	}
-
-	if err := r.validateStructuredOutputModel(); err != nil {
-		return err
-	}
-
-	if err := r.validateStructuredOutputFormat(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// validateStructuredOutputModel validates that the model supports structured output.
-func (r *CompletionRequest) validateStructuredOutputModel() error {
-	if r.Model != "sonar" {
-		return ErrStructuredOutputModelRequirement
-	}
-	return nil
-}
-
-// validateStructuredOutputFormat validates the response format configuration.
-func (r *CompletionRequest) validateStructuredOutputFormat() error {
-	switch r.ResponseFormat.Type {
-	case "json_schema":
-		return r.validateJSONSchemaFormat()
-	case "regex":
-		return r.validateRegexFormat()
-	default:
-		return ErrStructuredOutputFormatMismatch
-	}
-}
-
-// validateJSONSchemaFormat validates JSON Schema format configuration.
-func (r *CompletionRequest) validateJSONSchemaFormat() error {
-	if r.ResponseFormat.JSONSchema == nil {
-		return ErrStructuredOutputFormatMismatch
-	}
-	if r.ResponseFormat.Regex != nil {
-		return ErrStructuredOutputFormatMismatch
-	}
-	return nil
-}
-
-// validateRegexFormat validates Regex format configuration.
-func (r *CompletionRequest) validateRegexFormat() error {
-	if r.ResponseFormat.Regex == nil {
-		return ErrStructuredOutputFormatMismatch
-	}
-	if r.ResponseFormat.JSONSchema != nil {
-		return ErrStructuredOutputFormatMismatch
-	}
-	if r.ReturnImages {
-		return ErrStructuredOutputRegexAndImages
-	}
-	return nil
 }

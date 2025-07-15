@@ -187,3 +187,78 @@ func TestSearchResultString(t *testing.T) {
 		assert.Equal(t, "Test Article (https://example.com/article) - 2024-01-01 (updated: 2024-01-02)", sr.String())
 	})
 }
+
+func TestImageString(t *testing.T) {
+	t.Run("nil image returns empty string", func(t *testing.T) {
+		var img *perplexity.Image
+		assert.Equal(t, "", img.String())
+	})
+
+	t.Run("image with URL only", func(t *testing.T) {
+		img := &perplexity.Image{
+			ImageURL: "https://example.com/image.png",
+		}
+		assert.Equal(t, "https://example.com/image.png", img.String())
+	})
+
+	t.Run("image with URL and origin URL", func(t *testing.T) {
+		img := &perplexity.Image{
+			ImageURL:  "https://example.com/image.png",
+			OriginURL: "https://example.com/source",
+		}
+		assert.Equal(t, "https://example.com/image.png (from: https://example.com/source)", img.String())
+	})
+
+	t.Run("image with URL, origin URL, and dimensions", func(t *testing.T) {
+		img := &perplexity.Image{
+			ImageURL:  "https://example.com/image.png",
+			OriginURL: "https://example.com/source",
+			Width:     2016,
+			Height:    1512,
+		}
+		assert.Equal(t, "https://example.com/image.png (from: https://example.com/source) [2016x1512]", img.String())
+	})
+
+	t.Run("image with URL and dimensions only", func(t *testing.T) {
+		img := &perplexity.Image{
+			ImageURL: "https://example.com/image.png",
+			Width:    800,
+			Height:   600,
+		}
+		assert.Equal(t, "https://example.com/image.png [800x600]", img.String())
+	})
+}
+
+func TestGetImages(t *testing.T) {
+	t.Run("empty response returns empty images", func(t *testing.T) {
+		content := perplexity.CompletionResponse{}
+		assert.Equal(t, content.GetImages(), []perplexity.Image{})
+	})
+
+	t.Run("nil images returns empty images", func(t *testing.T) {
+		content := perplexity.CompletionResponse{
+			Images: nil,
+		}
+		assert.Equal(t, content.GetImages(), []perplexity.Image{})
+	})
+
+	t.Run("case with real images", func(t *testing.T) {
+		images := []perplexity.Image{
+			{
+				ImageURL:  "https://content-management-files.canva.com/cdn-cgi/image/f=auto,q=70/b94ec02b-ed6a-47ce-80fc-7eb2d5679e90/ai-face-generator_promo-showcase_012x.png",
+				OriginURL: "https://www.canva.com/ai-face-generator/",
+				Height:    1512,
+				Width:     2016,
+			},
+			{
+				ImageURL: "https://example.com/another-image.jpg",
+				Width:    800,
+				Height:   600,
+			},
+		}
+		content := perplexity.CompletionResponse{
+			Images: &images,
+		}
+		assert.Equal(t, content.GetImages(), images)
+	})
+}

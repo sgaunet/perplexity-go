@@ -12,7 +12,22 @@ import (
 // This example demonstrates how to create a completion request with web search options.
 func main() {
 	client := perplexity.NewClient(os.Getenv("PPLX_API_KEY"))
+	validator := perplexity.NewRequestValidator()
 
+	demonstrateBaseCompletion(client, validator)
+	printBreakToConsole()
+
+	demonstrateCompletionWithStructuredOutput(client, validator)
+	printBreakToConsole()
+
+	demonstrateCompletionWithImages(client, validator)
+	printBreakToConsole()
+
+	demonstrateCompletionWithServerSentEvents(client, validator)
+
+}
+
+func demonstrateBaseCompletion(client *perplexity.Client, validator *perplexity.RequestValidator) {
 	// Example message that would benefit from web search
 	msg := []perplexity.Message{
 		{
@@ -45,7 +60,7 @@ func main() {
 	// )
 
 	// Validate the request
-	if err := req.Validate(); err != nil {
+	if err := validator.ValidateRequest(req); err != nil {
 		fmt.Printf("Validation error: %v\n", err)
 		os.Exit(1)
 	}
@@ -73,7 +88,10 @@ func main() {
 			fmt.Printf("%d. %s\n", i+1, sr.String())
 		}
 	}
-	fmt.Println("*************")
+	fmt.Println(res.GetImages())
+}
+
+func demonstrateCompletionWithStructuredOutput(client *perplexity.Client, validator *perplexity.RequestValidator) {
 
 	// Example of structured output with JSON Schema
 	fmt.Println("\n=== JSON Schema Structured Output Example ===")
@@ -97,70 +115,109 @@ func main() {
 		},
 		"required": []string{"name", "age", "profession"},
 	}
-	
+
 	structuredMsg := []perplexity.Message{
 		{
 			Role:    "user",
 			Content: "Tell me about Albert Einstein. Please format your response as a JSON object with name, age at death, and profession.",
 		},
 	}
-	
+
 	// Create a request with JSON schema structured output
 	structuredReq := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(structuredMsg),
 		perplexity.WithModel("sonar"), // Note: structured output only works with "sonar" model
 		perplexity.WithJSONSchemaResponseFormat(personSchema),
 	)
-	
-	if err := structuredReq.Validate(); err != nil {
+
+	if err := validator.ValidateRequest(structuredReq); err != nil {
 		fmt.Printf("Structured request validation error: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	structuredRes, err := client.SendCompletionRequest(structuredReq)
 	if err != nil {
 		fmt.Printf("Structured API error: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	fmt.Println("JSON Schema Response:")
 	fmt.Println(structuredRes.GetLastContent())
-	
+
 	// Example of structured output with Regex
 	fmt.Println("\n=== Regex Structured Output Example ===")
-	
+
 	regexMsg := []perplexity.Message{
 		{
 			Role:    "user",
 			Content: "What is the IP address of Google's primary DNS server? Please respond with just the IP address in the format x.x.x.x",
 		},
 	}
-	
+
 	// Create a request with regex structured output for IP addresses
 	regexReq := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(regexMsg),
 		perplexity.WithModel("sonar"),
 		perplexity.WithRegexResponseFormat(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`),
 	)
-	
-	if err := regexReq.Validate(); err != nil {
+
+	if err := validator.ValidateRequest(regexReq); err != nil {
 		fmt.Printf("Regex request validation error: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	regexRes, err := client.SendCompletionRequest(regexReq)
 	if err != nil {
 		fmt.Printf("Regex API error: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	fmt.Println("Regex Response:")
 	fmt.Println(regexRes.GetLastContent())
-	fmt.Println("*************")
+}
 
-	// Support also server-sent events
-	req = perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithStream(true))
-	err = req.Validate()
+func demonstrateCompletionWithImages(client *perplexity.Client, validator *perplexity.RequestValidator) {
+	msg := []perplexity.Message{
+		{
+			Role:    "user",
+			Content: "Find some photos of the Eiffel Tower",
+		},
+	}
+
+	req := perplexity.NewCompletionRequest(
+		perplexity.WithMessages(msg),
+		perplexity.WithSearchRecencyFilter(""),
+		perplexity.WithReturnImages(true),
+	)
+
+	if err := validator.ValidateRequest(req); err != nil {
+		fmt.Printf("Images request validation error: %v\n", err)
+		os.Exit(1)
+	}
+
+	imagesRes, err := client.SendCompletionRequest(req)
+	if err != nil {
+		fmt.Printf("Images API error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Images Response:")
+	for _, img := range imagesRes.GetImages() {
+		fmt.Println(img.String())
+	}
+}
+
+// Support also server-sent events
+func demonstrateCompletionWithServerSentEvents(client *perplexity.Client, validator *perplexity.RequestValidator) {
+
+	msg := []perplexity.Message{
+		{
+			Role:    "user",
+			Content: "What are the latest developments in AI?",
+		},
+	}
+	req := perplexity.NewCompletionRequest(perplexity.WithMessages(msg), perplexity.WithStream(true))
+	err := validator.ValidateRequest(req)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -185,12 +242,15 @@ func main() {
 	for msg := range chResponses {
 		fullResponse = msg
 	}
-	// perplexity.TreatSSEData(chResponses)
+
 	wg.Wait()
 	fmt.Println("----------------")
 	fmt.Println(fullResponse.GetLastContent())
-	// if err != nil {
-	// 	fmt.Printf("Error: %v\n", err)
-	// 	os.Exit(1)
-	// }
+}
+
+// printBreakToConsole prints a visual break in the console output for readability.
+func printBreakToConsole() {
+	fmt.Println()
+	fmt.Println("*************")
+	fmt.Println()
 }

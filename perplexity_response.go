@@ -2,6 +2,7 @@ package perplexity
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 )
 
@@ -29,6 +30,7 @@ type CompletionResponse struct {
 	Object        string          `json:"object"`
 	Choices       []Choice        `json:"choices"`
 	SearchResults *[]SearchResult `json:"search_results,omitempty"`
+	Images        *[]Image        `json:"images,omitempty"`
 	// Deprecated: Use SearchResults instead for better structured data with titles, URLs, and metadata.
 	//go:deprecated
 	Citations *[]string `json:"citations,omitempty"`
@@ -40,6 +42,14 @@ type SearchResult struct {
 	URL         string  `json:"url"`
 	Date        *string `json:"date,omitempty"`
 	LastUpdated *string `json:"last_updated,omitempty"`
+}
+
+// Image represents a single image in the Perplexity API response.
+type Image struct {
+	ImageURL  string `json:"image_url"`
+	OriginURL string `json:"origin_url"`
+	Height    int    `json:"height"`
+	Width     int    `json:"width"`
 }
 
 // String returns a string representation of the SearchResult.
@@ -57,6 +67,23 @@ func (sr *SearchResult) String() string {
 	}
 	if sr.LastUpdated != nil {
 		result += " (updated: " + *sr.LastUpdated + ")"
+	}
+
+	return result
+}
+
+// String returns a string representation of the Image.
+func (img *Image) String() string {
+	if img == nil {
+		return ""
+	}
+
+	result := img.ImageURL
+	if img.OriginURL != "" {
+		result += " (from: " + img.OriginURL + ")"
+	}
+	if img.Width > 0 && img.Height > 0 {
+		result += fmt.Sprintf(" [%dx%d]", img.Width, img.Height)
 	}
 
 	return result
@@ -102,4 +129,12 @@ func (r *CompletionResponse) GetSearchResults() []SearchResult {
 		return []SearchResult{}
 	}
 	return *r.SearchResults
+}
+
+// GetImages returns the images of the completion response.
+func (r *CompletionResponse) GetImages() []Image {
+	if r.Images == nil {
+		return []Image{}
+	}
+	return *r.Images
 }
