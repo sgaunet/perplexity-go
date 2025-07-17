@@ -23,14 +23,15 @@ type Choice struct {
 
 // CompletionResponse is a response object for the Perplexity API.
 type CompletionResponse struct {
-	ID            string          `json:"id"`
-	Model         string          `json:"model"`
-	Created       int             `json:"created"`
-	Usage         Usage           `json:"usage"`
-	Object        string          `json:"object"`
-	Choices       []Choice        `json:"choices"`
-	SearchResults *[]SearchResult `json:"search_results,omitempty"`
-	Images        *[]Image        `json:"images,omitempty"`
+	ID               string          `json:"id"`
+	Model            string          `json:"model"`
+	Created          int             `json:"created"`
+	Usage            Usage           `json:"usage"`
+	Object           string          `json:"object"`
+	Choices          []Choice        `json:"choices"`
+	SearchResults    *[]SearchResult `json:"search_results,omitempty"`
+	Images           *[]Image        `json:"images,omitempty"`
+	RelatedQuestions *[]string       `json:"related_questions,omitempty"`
 	// Deprecated: Use SearchResults instead for better structured data with titles, URLs, and metadata.
 	//go:deprecated
 	Citations *[]string `json:"citations,omitempty"`
@@ -137,4 +138,12 @@ func (r *CompletionResponse) GetImages() []Image {
 		return []Image{}
 	}
 	return *r.Images
+}
+
+// GetRelatedQuestions returns the related questions of the completion response.
+func (r *CompletionResponse) GetRelatedQuestions() []string {
+	if r.RelatedQuestions == nil {
+		return []string{}
+	}
+	return *r.RelatedQuestions
 }
