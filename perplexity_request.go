@@ -21,6 +21,9 @@ const (
 
 	// DefaultSearchRecencyFilter is the default search recency filter value.
 	DefaultSearchRecencyFilter = "month"
+
+	// DefaultSearchMode is the default search mode value.
+	DefaultSearchMode = "web"
 )
 
 // CompletionRequest is a request object for the Perplexity API.
@@ -58,6 +61,9 @@ type CompletionRequest struct {
 	// SearchRecencyFilter: Returns search results within the specified time interval - does not apply to images.
 	// Values include year, month, week, day, hour
 	SearchRecencyFilter string `json:"search_recency_filter,omitempty" validate:"omitempty,oneof=year month week day hour"`
+	// SearchMode: Controls the search mode used for the request.
+	// Options: "academic" (prioritizes scholarly sources like peer-reviewed papers and academic journals), "web" (default)
+	SearchMode string `json:"search_mode,omitempty" validate:"omitempty,oneof=academic web"`
 	// TopK: The number of tokens to keep for highest top-k filtering,
 	// specified as an integer between 0 and 2048 inclusive.
 	// If set to 0, top-k filtering is disabled.
@@ -165,6 +171,7 @@ func DefaultCompletionRequest() *CompletionRequest {
 		ReturnImages:           false,
 		ReturnRelatedQuestions: false,
 		SearchRecencyFilter:    DefaultSearchRecencyFilter,
+		SearchMode:             DefaultSearchMode,
 		TopK:                   DefaultTopK,
 		Stream:                 false,
 		PresencePenalty:        DefaultPresencePenalty,
@@ -296,6 +303,14 @@ func WithReturnRelatedQuestions(returnRelatedQuestions bool) CompletionRequestOp
 func WithSearchRecencyFilter(searchRecencyFilter string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.SearchRecencyFilter = searchRecencyFilter
+	}
+}
+
+// WithSearchMode sets the search mode option.
+// Options: "academic" (prioritizes scholarly sources like peer-reviewed papers and academic journals), "web" (default).
+func WithSearchMode(searchMode string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.SearchMode = searchMode
 	}
 }
 

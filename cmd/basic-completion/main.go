@@ -33,10 +33,11 @@ func main() {
 		},
 	}
 
-	// Create request with messages, web search options, and related questions
+	// Create request with messages, web search options, search mode, and related questions
 	req := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(msg),
 		perplexity.WithWebSearchOptions(webSearchOpts),
+		perplexity.WithSearchMode("web"), // Use "web" or "academic" mode
 		perplexity.WithReturnRelatedQuestions(true), // Enable related questions
 	)
 
@@ -45,6 +46,7 @@ func main() {
 	// 	perplexity.WithMessages(msg),
 	// 	perplexity.WithSearchContextSize("high"),
 	// 	perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
+	// 	perplexity.WithSearchMode("academic"), // Use "academic" for scholarly sources
 	// 	perplexity.WithReturnRelatedQuestions(true),
 	// )
 

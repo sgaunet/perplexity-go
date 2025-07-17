@@ -241,6 +241,42 @@ func TestSearchRecencyFilterValidationRule(t *testing.T) {
 	}
 }
 
+func TestSearchModeValidationRule(t *testing.T) {
+	validate := validator.New()
+	tests := []struct {
+		name  string
+		value string
+		valid bool
+	}{
+		{"empty value", "", true},
+		{"academic is valid", "academic", true},
+		{"web is valid", "web", true},
+		{"invalid value foo", "foo", false},
+		{"invalid value google", "google", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := &perplexity.CompletionRequest{
+				Messages:         []perplexity.Message{{Role: "user", Content: "test"}},
+				Model:            perplexity.DefaultModel,
+				MaxTokens:        10,
+				Temperature:      1.0,
+				TopP:             0.5,
+				SearchMode:       test.value,
+				TopK:             10,
+				PresencePenalty:  0.0,
+				FrequencyPenalty: 1.0,
+			}
+			err := validate.Struct(req)
+			if test.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateSearchDomainFilter(t *testing.T) {
 	t.Run("returns no error for empty filter", func(t *testing.T) {
 		req := perplexity.NewCompletionRequest(

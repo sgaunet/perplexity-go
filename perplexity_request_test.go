@@ -90,6 +90,14 @@ func TestWithSearchRecencyFilter(t *testing.T) {
 	})
 }
 
+func TestWithSearchMode(t *testing.T) {
+	t.Run("creates a new CompletionRequest with search mode", func(t *testing.T) {
+		searchMode := "academic"
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchMode(searchMode))
+		assert.Equal(t, req.SearchMode, searchMode)
+	})
+}
+
 func TestWebSearchOptionsValidation(t *testing.T) {
 	validate := validator.New()
 	t.Run("valid search_context_size values", func(t *testing.T) {
