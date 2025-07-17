@@ -33,10 +33,11 @@ func main() {
 		},
 	}
 
-	// Create request with messages and web search options
+	// Create request with messages, web search options, and related questions
 	req := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(msg),
 		perplexity.WithWebSearchOptions(webSearchOpts),
+		perplexity.WithReturnRelatedQuestions(true), // Enable related questions
 	)
 
 	// Alternatively, you can set options individually:
@@ -44,6 +45,7 @@ func main() {
 	// 	perplexity.WithMessages(msg),
 	// 	perplexity.WithSearchContextSize("high"),
 	// 	perplexity.WithUserLocation(48.8566, 2.3522, "FR"),
+	// 	perplexity.WithReturnRelatedQuestions(true),
 	// )
 
 	// Validate the request
@@ -84,6 +86,14 @@ func main() {
 		fmt.Println("\n=== Images ===")
 		for i, img := range images {
 			fmt.Printf("%d. %s\n", i+1, img.String())
+		}
+	}
+
+	// Print related questions if available
+	if relatedQuestions := res.GetRelatedQuestions(); len(relatedQuestions) > 0 {
+		fmt.Println("\n=== Related Questions ===")
+		for i, question := range relatedQuestions {
+			fmt.Printf("%d. %s\n", i+1, question)
 		}
 	}
 }

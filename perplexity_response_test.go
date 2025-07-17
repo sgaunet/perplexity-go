@@ -262,3 +262,31 @@ func TestGetImages(t *testing.T) {
 		assert.Equal(t, content.GetImages(), images)
 	})
 }
+
+func TestGetRelatedQuestions(t *testing.T) {
+	t.Run("empty response returns empty related questions", func(t *testing.T) {
+		content := perplexity.CompletionResponse{}
+		assert.Equal(t, content.GetRelatedQuestions(), []string{})
+	})
+
+	t.Run("nil related questions returns empty related questions", func(t *testing.T) {
+		content := perplexity.CompletionResponse{
+			RelatedQuestions: nil,
+		}
+		assert.Equal(t, content.GetRelatedQuestions(), []string{})
+	})
+
+	t.Run("case with real related questions", func(t *testing.T) {
+		relatedQuestions := []string{
+			"What are the best free resources for learning to code",
+			"How do I choose the right programming language to start with",
+			"What are some beginner-friendly coding projects to start with",
+			"How can I stay motivated while learning to code",
+			"What are the most common mistakes beginners make when learning to code",
+		}
+		content := perplexity.CompletionResponse{
+			RelatedQuestions: &relatedQuestions,
+		}
+		assert.Equal(t, content.GetRelatedQuestions(), relatedQuestions)
+	})
+}
