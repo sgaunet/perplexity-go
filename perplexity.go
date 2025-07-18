@@ -24,6 +24,9 @@ const DefaultTimeout = 30 * time.Second
 // DefaultModel is the default model for the Perplexity API.
 const DefaultModel = "sonar"
 
+// ModelSonarDeepResearch is the sonar-deep-research model that supports reasoning_effort parameter.
+const ModelSonarDeepResearch = "sonar-deep-research"
+
 // Error definitions.
 var (
 	// ErrNilRequest is returned when a nil request is provided.

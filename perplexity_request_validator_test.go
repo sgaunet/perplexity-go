@@ -835,3 +835,87 @@ func TestValidateDateFilters(t *testing.T) {
 		assert.Equal(t, "7/4/2024", req.LastUpdatedBeforeFilter)
 	})
 }
+
+func TestValidateReasoningEffort(t *testing.T) {
+	validator := perplexity.NewRequestValidator()
+
+	t.Run("returns no error when reasoning_effort is empty", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns no error when reasoning_effort is used with sonar-deep-research model", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.ModelSonarDeepResearch),
+			perplexity.WithReasoningEffort(perplexity.ReasoningEffortLow),
+		)
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+
+		// Test medium
+		req = perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.ModelSonarDeepResearch),
+			perplexity.WithReasoningEffort(perplexity.ReasoningEffortMedium),
+		)
+		err = validator.ValidateRequest(req)
+		assert.NoError(t, err)
+
+		// Test high
+		req = perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.ModelSonarDeepResearch),
+			perplexity.WithReasoningEffort(perplexity.ReasoningEffortHigh),
+		)
+		err = validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns error when reasoning_effort is used with non-sonar-deep-research model", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel("sonar"),
+			perplexity.WithReasoningEffort(perplexity.ReasoningEffortHigh),
+		)
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrReasoningEffortModelRequirement, err)
+	})
+
+	t.Run("returns error when reasoning_effort is used with other models", func(t *testing.T) {
+		models := []string{
+			"llama-3.1-sonar-small-128k-online",
+			"llama-3.1-sonar-large-128k-online",
+			"llama-3.1-sonar-huge-128k-online",
+		}
+
+		for _, model := range models {
+			req := perplexity.NewCompletionRequest(
+				perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+				perplexity.WithModel(model),
+				perplexity.WithReasoningEffort(perplexity.ReasoningEffortMedium),
+			)
+			err := validator.ValidateRequest(req)
+			assert.Error(t, err)
+			assert.Equal(t, perplexity.ErrReasoningEffortModelRequirement, err)
+		}
+	})
+
+	t.Run("returns error for invalid reasoning_effort value", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.ModelSonarDeepResearch),
+		)
+		// Manually set an invalid value to test validation
+		req.ReasoningEffort = "ultra-high"
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Key: 'CompletionRequest.ReasoningEffort'")
+	})
+}

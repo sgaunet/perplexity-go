@@ -72,6 +72,9 @@ var (
 
 	// ErrDateFilterInvalidFormat is returned when a date filter has an invalid format.
 	ErrDateFilterInvalidFormat = errors.New("date filter must be in format %m/%d/%Y (e.g., 3/1/2025, 12/31/2024)")
+
+	// ErrReasoningEffortModelRequirement is returned when reasoning_effort is used with an unsupported model.
+	ErrReasoningEffortModelRequirement = errors.New("reasoning_effort is only available for the '" + ModelSonarDeepResearch + "' model")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -106,6 +109,7 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 		v.validateImageDomainFilter,
 		v.validateImageFormatFilter,
 		v.validateDateFilters,
+		v.validateReasoningEffort,
 	}
 
 	for _, validator := range validators {
@@ -325,6 +329,20 @@ func isValidDateFormat(dateStr string) bool {
 	pattern := `^(1[0-2]|[1-9])/(3[01]|[12][0-9]|[1-9])/\d{4}$`
 	matched, err := regexp.MatchString(pattern, dateStr)
 	return err == nil && matched
+}
+
+// validateReasoningEffort validates that reasoning_effort is only used with sonar-deep-research model.
+func (v *RequestValidator) validateReasoningEffort(req *CompletionRequest) error {
+	if req.ReasoningEffort == "" {
+		return nil
+	}
+
+	// If reasoning_effort is set, model must be sonar-deep-research
+	if req.Model != ModelSonarDeepResearch {
+		return ErrReasoningEffortModelRequirement
+	}
+
+	return nil
 }
 
 // CompletionRequest validators for backward compatibility
