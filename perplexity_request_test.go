@@ -496,3 +496,39 @@ func TestDateFilterOptions(t *testing.T) {
 		assert.Equal(t, "12/31/2024", req.LastUpdatedBeforeFilter)
 	})
 }
+
+func TestWithReasoningEffort(t *testing.T) {
+	t.Run("WithReasoningEffort sets the reasoning effort", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithReasoningEffort(perplexity.ReasoningEffortHigh))
+		assert.Equal(t, perplexity.ReasoningEffortHigh, req.ReasoningEffort)
+	})
+
+	t.Run("WithReasoningEffort accepts all valid values", func(t *testing.T) {
+		// Test low
+		req := perplexity.NewCompletionRequest(perplexity.WithReasoningEffort(perplexity.ReasoningEffortLow))
+		assert.Equal(t, perplexity.ReasoningEffortLow, req.ReasoningEffort)
+
+		// Test medium
+		req = perplexity.NewCompletionRequest(perplexity.WithReasoningEffort(perplexity.ReasoningEffortMedium))
+		assert.Equal(t, perplexity.ReasoningEffortMedium, req.ReasoningEffort)
+
+		// Test high
+		req = perplexity.NewCompletionRequest(perplexity.WithReasoningEffort(perplexity.ReasoningEffortHigh))
+		assert.Equal(t, perplexity.ReasoningEffortHigh, req.ReasoningEffort)
+	})
+
+	t.Run("ReasoningEffort is empty by default", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		assert.Equal(t, "", req.ReasoningEffort)
+	})
+
+	t.Run("ReasoningEffort can be used with sonar-deep-research model", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.ModelSonarDeepResearch),
+			perplexity.WithReasoningEffort(perplexity.ReasoningEffortHigh),
+		)
+		assert.Equal(t, perplexity.ModelSonarDeepResearch, req.Model)
+		assert.Equal(t, perplexity.ReasoningEffortHigh, req.ReasoningEffort)
+	})
+}

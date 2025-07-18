@@ -26,6 +26,16 @@ const (
 
 	// DefaultSearchMode is the default search mode value.
 	DefaultSearchMode = "web"
+
+	// ReasoningEffortLow provides faster, simpler answers with reduced computational effort for sonar-deep-research model.
+	ReasoningEffortLow = "low"
+	// ReasoningEffortMedium provides balanced approach for sonar-deep-research model.
+	ReasoningEffortMedium = "medium"
+	// ReasoningEffortHigh provides deeper, more thorough responses with increased computational effort for sonar-deep-research model.
+	ReasoningEffortHigh = "high"
+
+	// DefaultReasoningEffort is the default reasoning effort value for sonar-deep-research model.
+	DefaultReasoningEffort = ReasoningEffortMedium
 )
 
 // CompletionRequest is a request object for the Perplexity API.
@@ -129,6 +139,11 @@ type CompletionRequest struct {
 	// LastUpdatedBeforeFilter: Optional. Filters search results to include content last updated before a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
 	LastUpdatedBeforeFilter string `json:"last_updated_before_filter,omitempty" validate:"omitempty"`
+
+	// ReasoningEffort: Optional. Controls the computational effort dedicated to each query for sonar-deep-research model.
+	// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses)
+	// Only applicable for sonar-deep-research model.
+	ReasoningEffort string `json:"reasoning_effort,omitempty" validate:"omitempty,oneof=low medium high"`
 }
 
 // WebSearchOptions specifies web search context size and user location for the request.
@@ -460,6 +475,16 @@ func WithLastUpdatedAfterFilter(date time.Time) CompletionRequestOption {
 func WithLastUpdatedBeforeFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.LastUpdatedBeforeFilter = date.Format("1/2/2006")
+	}
+}
+
+// WithReasoningEffort sets the reasoning effort option for sonar-deep-research model.
+// Controls the computational effort dedicated to each query.
+// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses).
+// Only applicable for sonar-deep-research model.
+func WithReasoningEffort(effort string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.ReasoningEffort = effort
 	}
 }
 
