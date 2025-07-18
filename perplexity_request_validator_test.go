@@ -2,6 +2,7 @@ package perplexity_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/sgaunet/perplexity-go/v2"
@@ -698,5 +699,139 @@ func TestValidateRequestNil(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "request cannot be nil")
 		assert.Contains(t, err.Error(), "validation failed")
+	})
+}
+
+func TestValidateDateFilters(t *testing.T) {
+	validator := perplexity.NewRequestValidator()
+
+	t.Run("returns no error for valid date formats", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		// Manually set date filters to test validation
+		req.SearchAfterDateFilter = "3/1/2025"
+		req.SearchBeforeDateFilter = "12/31/2024"
+		req.LastUpdatedAfterFilter = "1/15/2025"
+		req.LastUpdatedBeforeFilter = "7/4/2024"
+
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns no error for empty date filters", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		// All date filters are empty by default
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns error for invalid date format with leading zeros", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.SearchAfterDateFilter = "03/01/2025" // Leading zero in month
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns error for ISO date format", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.SearchBeforeDateFilter = "2025-03-01" // ISO format
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns error for two-digit year", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.LastUpdatedAfterFilter = "3/1/25" // Two-digit year
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns error for invalid separator", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.LastUpdatedBeforeFilter = "3-1-2025" // Dashes instead of slashes
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns error for invalid month", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.SearchAfterDateFilter = "13/1/2025" // Month > 12
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns error for invalid day", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.SearchBeforeDateFilter = "3/32/2025" // Day > 31
+
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrDateFilterInvalidFormat, err)
+	})
+
+	t.Run("returns no error for single-digit months and days", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+		)
+		req.SearchAfterDateFilter = "1/1/2025"   // Single-digit month and day
+		req.SearchBeforeDateFilter = "9/9/2024"  // Single-digit month and day
+		req.LastUpdatedAfterFilter = "12/1/2025" // Single-digit day
+		req.LastUpdatedBeforeFilter = "1/31/2024" // Single-digit month
+
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("functional options always produce valid formats", func(t *testing.T) {
+		// Using functional options should always produce valid date formats
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+			perplexity.WithSearchAfterDateFilter(time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)),
+			perplexity.WithSearchBeforeDateFilter(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)),
+			perplexity.WithLastUpdatedAfterFilter(time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)),
+			perplexity.WithLastUpdatedBeforeFilter(time.Date(2024, 7, 4, 0, 0, 0, 0, time.UTC)),
+		)
+
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+		assert.Equal(t, "3/1/2025", req.SearchAfterDateFilter)
+		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+		assert.Equal(t, "1/15/2025", req.LastUpdatedAfterFilter)
+		assert.Equal(t, "7/4/2024", req.LastUpdatedBeforeFilter)
 	})
 }

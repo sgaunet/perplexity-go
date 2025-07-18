@@ -69,6 +69,9 @@ var (
 
 	// ErrImageFormatFilterInvalidFormat is returned when an image format filter entry has an invalid format.
 	ErrImageFormatFilterInvalidFormat = errors.New("image format filter entry must be a valid format (e.g., jpg, png, webp)")
+
+	// ErrDateFilterInvalidFormat is returned when a date filter has an invalid format.
+	ErrDateFilterInvalidFormat = errors.New("date filter must be in format %m/%d/%Y (e.g., 3/1/2025, 12/31/2024)")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -102,6 +105,7 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 		v.validateStructuredOutput,
 		v.validateImageDomainFilter,
 		v.validateImageFormatFilter,
+		v.validateDateFilters,
 	}
 
 	for _, validator := range validators {
@@ -292,6 +296,35 @@ func validateImageFormat(format string) error {
 	}
 
 	return nil
+}
+
+// validateDateFilters validates all date filter fields have correct format.
+func (v *RequestValidator) validateDateFilters(req *CompletionRequest) error {
+	dateFields := []string{
+		req.SearchAfterDateFilter,
+		req.SearchBeforeDateFilter,
+		req.LastUpdatedAfterFilter,
+		req.LastUpdatedBeforeFilter,
+	}
+
+	for _, dateStr := range dateFields {
+		if dateStr != "" && !isValidDateFormat(dateStr) {
+			return ErrDateFilterInvalidFormat
+		}
+	}
+
+	return nil
+}
+
+// isValidDateFormat checks if a date string matches the format %m/%d/%Y.
+func isValidDateFormat(dateStr string) bool {
+	// Regex pattern for %m/%d/%Y format
+	// Month: 1-12 (without leading zeros for 1-9)
+	// Day: 1-31 (without leading zeros for 1-9)
+	// Year: 4 digits
+	pattern := `^(1[0-2]|[1-9])/(3[01]|[12][0-9]|[1-9])/\d{4}$`
+	matched, err := regexp.MatchString(pattern, dateStr)
+	return err == nil && matched
 }
 
 // CompletionRequest validators for backward compatibility
