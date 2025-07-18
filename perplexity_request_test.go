@@ -3,6 +3,7 @@ package perplexity_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/sgaunet/perplexity-go/v2"
@@ -433,5 +434,65 @@ func TestStructuredOutputJSONSerialization(t *testing.T) {
 
 		regexConfig := result["regex"].(map[string]interface{})
 		assert.Equal(t, regex, regexConfig["regex"])
+	})
+}
+
+func TestDateFilterOptions(t *testing.T) {
+	t.Run("WithSearchAfterDateFilter sets the search after date filter", func(t *testing.T) {
+		date := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchAfterDateFilter(date))
+		assert.Equal(t, "3/1/2025", req.SearchAfterDateFilter)
+	})
+
+	t.Run("WithSearchBeforeDateFilter sets the search before date filter", func(t *testing.T) {
+		date := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchBeforeDateFilter(date))
+		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+	})
+
+	t.Run("WithLastUpdatedAfterFilter sets the last updated after filter", func(t *testing.T) {
+		date := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithLastUpdatedAfterFilter(date))
+		assert.Equal(t, "1/15/2025", req.LastUpdatedAfterFilter)
+	})
+
+	t.Run("WithLastUpdatedBeforeFilter sets the last updated before filter", func(t *testing.T) {
+		date := time.Date(2024, 7, 4, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithLastUpdatedBeforeFilter(date))
+		assert.Equal(t, "7/4/2024", req.LastUpdatedBeforeFilter)
+	})
+
+	t.Run("date formatting handles single-digit months and days correctly", func(t *testing.T) {
+		// Test single-digit month and day
+		date1 := time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC)
+		req1 := perplexity.NewCompletionRequest(perplexity.WithSearchAfterDateFilter(date1))
+		assert.Equal(t, "1/5/2025", req1.SearchAfterDateFilter)
+
+		// Test double-digit month and day
+		date2 := time.Date(2025, 12, 25, 0, 0, 0, 0, time.UTC)
+		req2 := perplexity.NewCompletionRequest(perplexity.WithSearchBeforeDateFilter(date2))
+		assert.Equal(t, "12/25/2025", req2.SearchBeforeDateFilter)
+
+		// Test leap year date
+		date3 := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC)
+		req3 := perplexity.NewCompletionRequest(perplexity.WithLastUpdatedAfterFilter(date3))
+		assert.Equal(t, "2/29/2024", req3.LastUpdatedAfterFilter)
+	})
+
+	t.Run("multiple date filters can be set together", func(t *testing.T) {
+		afterDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		beforeDate := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+		
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithSearchAfterDateFilter(afterDate),
+			perplexity.WithSearchBeforeDateFilter(beforeDate),
+			perplexity.WithLastUpdatedAfterFilter(afterDate),
+			perplexity.WithLastUpdatedBeforeFilter(beforeDate),
+		)
+
+		assert.Equal(t, "1/1/2024", req.SearchAfterDateFilter)
+		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+		assert.Equal(t, "1/1/2024", req.LastUpdatedAfterFilter)
+		assert.Equal(t, "12/31/2024", req.LastUpdatedBeforeFilter)
 	})
 }

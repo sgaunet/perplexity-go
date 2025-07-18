@@ -1,5 +1,7 @@
 package perplexity
 
+import "time"
+
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
 	DefaultTemperature = 0.2
@@ -111,6 +113,22 @@ type CompletionRequest struct {
 	// ImageFormatFilter: Optional. Controls the format filter for images.
 	// Only available for the "sonar" model.
 	ImageFormatFilter []string `json:"image_format_filter,omitempty" validate:"omitempty"`
+
+	// SearchAfterDateFilter: Optional. Filters search results to include content published after a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	SearchAfterDateFilter string `json:"search_after_date_filter,omitempty" validate:"omitempty"`
+
+	// SearchBeforeDateFilter: Optional. Filters search results to include content published before a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	SearchBeforeDateFilter string `json:"search_before_date_filter,omitempty" validate:"omitempty"`
+
+	// LastUpdatedAfterFilter: Optional. Filters search results to include content last updated after a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	LastUpdatedAfterFilter string `json:"last_updated_after_filter,omitempty" validate:"omitempty"`
+
+	// LastUpdatedBeforeFilter: Optional. Filters search results to include content last updated before a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	LastUpdatedBeforeFilter string `json:"last_updated_before_filter,omitempty" validate:"omitempty"`
 }
 
 // WebSearchOptions specifies web search context size and user location for the request.
@@ -406,6 +424,42 @@ func WithImageDomainFilter(domains []string) CompletionRequestOption {
 func WithImageFormatFilter(formats []string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ImageFormatFilter = formats
+	}
+}
+
+// WithSearchAfterDateFilter sets the search after date filter option.
+// Filters search results to include content published after the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.SearchAfterDateFilter = date.Format("1/2/2006")
+	}
+}
+
+// WithSearchBeforeDateFilter sets the search before date filter option.
+// Filters search results to include content published before the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithSearchBeforeDateFilter(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.SearchBeforeDateFilter = date.Format("1/2/2006")
+	}
+}
+
+// WithLastUpdatedAfterFilter sets the last updated after filter option.
+// Filters search results to include content last updated after the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithLastUpdatedAfterFilter(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.LastUpdatedAfterFilter = date.Format("1/2/2006")
+	}
+}
+
+// WithLastUpdatedBeforeFilter sets the last updated before filter option.
+// Filters search results to include content last updated before the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithLastUpdatedBeforeFilter(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.LastUpdatedBeforeFilter = date.Format("1/2/2006")
 	}
 }
 
