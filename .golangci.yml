@@ -9,6 +9,7 @@ linters:
 
   disable:
     - wsl
+    - wsl_v5
     - nlreturn
     - depguard
     - gochecknoinits
@@ -21,6 +22,7 @@ linters:
     - lll
     - funlen
     - tagalign
+    - noinlineerr
 
   exclusions:
     paths:
