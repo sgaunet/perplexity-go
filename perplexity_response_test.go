@@ -290,3 +290,168 @@ func TestGetRelatedQuestions(t *testing.T) {
 		assert.Equal(t, content.GetRelatedQuestions(), relatedQuestions)
 	})
 }
+
+func TestGetPostThinkingContent(t *testing.T) {
+	t.Run("empty response returns empty string", func(t *testing.T) {
+		response := perplexity.CompletionResponse{}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, "", content)
+	})
+
+	t.Run("no choices returns empty string", func(t *testing.T) {
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, "", content)
+	})
+
+	t.Run("content without thinking section returns original content", func(t *testing.T) {
+		originalContent := "This is a regular response without thinking."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: originalContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, originalContent, content)
+	})
+
+	t.Run("content with thinking section returns post-thinking content", func(t *testing.T) {
+		fullContent := "<think>I need to analyze this question carefully. Let me think about the best approach...</think>\n\nThis is the final answer after thinking."
+		expectedContent := "This is the final answer after thinking."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+
+	t.Run("content with thinking section and extra whitespace", func(t *testing.T) {
+		fullContent := "<think>Let me think about this...</think>   \n\n  Final answer with extra whitespace.  \n\n"
+		expectedContent := "Final answer with extra whitespace."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+
+	t.Run("content with multiple thinking sections returns content after last one", func(t *testing.T) {
+		fullContent := "<think>First thought</think>Some content<think>Second thought</think>\n\nFinal answer."
+		expectedContent := "Final answer."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+
+	t.Run("content with only opening think tag returns original content", func(t *testing.T) {
+		fullContent := "<think>This thinking section never closes..."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, fullContent, content)
+	})
+
+	t.Run("content with nested or complex thinking sections", func(t *testing.T) {
+		fullContent := "<think>I need to think about this <nested>tag</nested> carefully.</think>\n\n{\"answer\": \"This is JSON formatted response\"}"
+		expectedContent := "{\"answer\": \"This is JSON formatted response\"}"
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+
+	t.Run("content with empty post-thinking section", func(t *testing.T) {
+		fullContent := "<think>I'm thinking...</think>"
+		expectedContent := ""
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+
+	t.Run("multiple choices returns content from last choice", func(t *testing.T) {
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: "<think>First choice thinking</think>First choice answer",
+					},
+				},
+				{
+					Message: perplexity.Message{
+						Content: "<think>Second choice thinking</think>Second choice answer",
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, "Second choice answer", content)
+	})
+
+	t.Run("real world example with reasoning model response", func(t *testing.T) {
+		fullContent := `<think>
+The user is asking about the capital of France. This is a straightforward geography question. The capital of France is Paris. I should provide a clear, accurate answer.
+</think>
+
+The capital of France is Paris. Paris is not only the political capital but also the largest city in France, serving as the country's economic, cultural, and administrative center.`
+		expectedContent := "The capital of France is Paris. Paris is not only the political capital but also the largest city in France, serving as the country's economic, cultural, and administrative center."
+		response := perplexity.CompletionResponse{
+			Choices: []perplexity.Choice{
+				{
+					Message: perplexity.Message{
+						Content: fullContent,
+					},
+				},
+			},
+		}
+		content := response.GetPostThinkingContent()
+		assert.Equal(t, expectedContent, content)
+	})
+}

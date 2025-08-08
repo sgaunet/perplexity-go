@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Usage is a usage object for the Perplexity API.
@@ -146,4 +147,28 @@ func (r *CompletionResponse) GetRelatedQuestions() []string {
 		return []string{}
 	}
 	return *r.RelatedQuestions
+}
+
+// GetPostThinkingContent returns the content that comes after the thinking section in reasoning model responses.
+// For reasoning models like sonar-reasoning or sonar-reasoning-pro, the response often contains a <think>...</think>
+// section followed by the actual formatted response. This method extracts only the content after the thinking section.
+// If no thinking section is found, it returns the original content unchanged.
+func (r *CompletionResponse) GetPostThinkingContent() string {
+	content := r.GetLastContent()
+	return extractPostThinkingContent(content)
+}
+
+// extractPostThinkingContent extracts content that comes after the last </think> tag.
+// If no </think> tag is found, returns the original content.
+func extractPostThinkingContent(content string) string {
+	// Find the last closing </think> tag
+	thinkEnd := strings.LastIndex(content, "</think>")
+	if thinkEnd == -1 {
+		// No thinking section, return original content
+		return content
+	}
+
+	// Return everything after </think>, trimmed of whitespace
+	result := strings.TrimSpace(content[thinkEnd+8:]) // 8 = len("</think>")
+	return result
 }

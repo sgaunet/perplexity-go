@@ -28,9 +28,6 @@ var (
 	// ErrValidationFailed is returned when struct validation fails.
 	ErrValidationFailed = errors.New("validation failed")
 
-	// ErrStructuredOutputModelRequirement is returned when structured output is used with an unsupported model.
-	ErrStructuredOutputModelRequirement = errors.New("structured output (response_format) is only available for the 'sonar' model")
-
 	// ErrStructuredOutputFormatMismatch is returned when the response format configuration doesn't match the type.
 	ErrStructuredOutputFormatMismatch = errors.New("response format type must match the provided configuration (json_schema or regex)")
 
@@ -148,22 +145,10 @@ func (v *RequestValidator) validateStructuredOutput(req *CompletionRequest) erro
 		return nil
 	}
 
-	if err := v.validateStructuredOutputModel(req); err != nil {
-		return err
-	}
-
 	if err := v.validateStructuredOutputFormat(req); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// validateStructuredOutputModel validates that the model supports structured output.
-func (v *RequestValidator) validateStructuredOutputModel(req *CompletionRequest) error {
-	if req.Model != "sonar" {
-		return ErrStructuredOutputModelRequirement
-	}
 	return nil
 }
 
