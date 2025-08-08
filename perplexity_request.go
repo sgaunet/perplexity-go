@@ -61,7 +61,7 @@ type CompletionRequest struct {
 	// Required range: 0 < x < 1
 	TopP float64 `json:"top_p" validate:"gt=0,lt=1"`
 	// SearchDomainFilter: Given a list of domains, limit the citations used by the online model
-	// to URLs from the specified domains. Currently limited to only 3 domains for allowlisting and denylisting.
+	// to URLs from the specified domains. Not to exceed 10 domains for allowlisting and denylisting.
 	// For denylisting add a - to the beginning of the domain string. This filter is in closed beta
 	SearchDomainFilter []string `json:"search_domain_filter"`
 	// ReturnImages: Determines whether or not a request to an online model
@@ -102,11 +102,8 @@ type CompletionRequest struct {
 
 	// ResponseFormat: Optional. Controls the format of the response output.
 	// Supports JSON Schema and Regex formats for structured outputs.
-	// Only available for the "sonar" model.
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty" validate:"omitempty"`
 
-	// ImageDomainFilter: Optional. Controls the domain filter for images.
-	// Only available for the "sonar" model.
 	// ImageDomainFilter: Optional. Controls the domain filter for images.
 	// Domain Filtering:
 	//   - prepending the url with - will exclude the domain
@@ -121,7 +118,6 @@ type CompletionRequest struct {
 	ImageDomainFilter []string `json:"image_domain_filter,omitempty" validate:"omitempty"`
 
 	// ImageFormatFilter: Optional. Controls the format filter for images.
-	// Only available for the "sonar" model.
 	ImageFormatFilter []string `json:"image_format_filter,omitempty" validate:"omitempty"`
 
 	// SearchAfterDateFilter: Optional. Filters search results to include content published after a specific date.
@@ -387,7 +383,6 @@ func WithResponseFormat(format *ResponseFormat) CompletionRequestOption {
 
 // WithJSONSchemaResponseFormat sets the response format to JSON Schema.
 // The schema parameter can be a Go struct, map, or any valid JSON schema.
-// Only available for the "sonar" model.
 func WithJSONSchemaResponseFormat(schema interface{}) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ResponseFormat = &ResponseFormat{
@@ -401,7 +396,6 @@ func WithJSONSchemaResponseFormat(schema interface{}) CompletionRequestOption {
 
 // WithRegexResponseFormat sets the response format to Regex.
 // The regex parameter should be a valid regular expression pattern.
-// Only available for the "sonar" model.
 func WithRegexResponseFormat(regex string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ResponseFormat = &ResponseFormat{
@@ -435,7 +429,6 @@ func WithImageDomainFilter(domains []string) CompletionRequestOption {
 
 // WithImageFormatFilter sets the image format filter option.
 // Controls which image formats to include in the response.
-// Only available for the "sonar" model.
 func WithImageFormatFilter(formats []string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ImageFormatFilter = formats

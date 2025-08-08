@@ -101,7 +101,7 @@ func TestStructuredOutputValidation(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("rejects structured output with non-sonar model", func(t *testing.T) {
+	t.Run("allows structured output with any model", func(t *testing.T) {
 		msg := []perplexity.Message{
 			{
 				Role:    "user",
@@ -117,8 +117,7 @@ func TestStructuredOutputValidation(t *testing.T) {
 			perplexity.WithJSONSchemaResponseFormat(schema),
 		)
 		err := validator.ValidateRequest(req)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "structured output (response_format) is only available for the 'sonar' model")
+		assert.NoError(t, err)
 	})
 
 	t.Run("rejects invalid json_schema configuration", func(t *testing.T) {
@@ -688,8 +687,7 @@ func TestBackwardCompatibility(t *testing.T) {
 			perplexity.WithJSONSchemaResponseFormat(map[string]interface{}{"type": "object"}),
 		)
 		err := req.ValidateStructuredOutput()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "structured output (response_format) is only available for the 'sonar' model")
+		assert.NoError(t, err)
 	})
 }
 
