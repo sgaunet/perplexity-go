@@ -10,7 +10,7 @@ jobs:
   generate-badges:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # setup go environment
       - name: Set up Go
@@ -27,7 +27,7 @@ jobs:
           rm profile.cov
           echo "COVERAGE_VALUE=${total}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: sgaunet/gh-action-badge
           path: gh-action-badge
