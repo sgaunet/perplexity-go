@@ -1,33 +1,34 @@
 name: linter
 
 on:
-  pull_request:
   push:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   linter:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
         with:
-          fetch-depth: 0
-      - name: Install Go
-        uses: actions/setup-go@v5
+          go-version: stable
+      - name: Install task
+        uses: jaxxstorm/action-install-gh-release@v1.12.0
         with:
-          go-version: '>=1.24'
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.13.0
+          repo: go-task/task
+          cache: enable
+          # tag: 
+      - name: Install golangci-lint
+        uses: jaxxstorm/action-install-gh-release@v1.12.0
         with:
-          enable-cache: true
-          devbox-version: 0.14.0
+          repo: golangci/golangci-lint
+          tag: v2.2.2
+          cache: enable
+          binaries-location: golangci-lint-2.2.2-linux-amd64
 
-      - name: Install prerequisites
+      - name: Run linter
         shell: /usr/bin/bash {0}
         run: |
-          devbox install
-          devbox run linter
+          task linter
