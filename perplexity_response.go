@@ -7,11 +7,20 @@ import (
 	"strings"
 )
 
+// Cost represents the cost breakdown for API usage.
+type Cost struct {
+	InputTokensCost  *float64 `json:"input_tokens_cost,omitempty"`
+	OutputTokensCost *float64 `json:"output_tokens_cost,omitempty"`
+	RequestCost      *float64 `json:"request_cost,omitempty"`
+	TotalCost        *float64 `json:"total_cost,omitempty"`
+}
+
 // Usage is a usage object for the Perplexity API.
 type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens     int   `json:"prompt_tokens"`
+	CompletionTokens int   `json:"completion_tokens"`
+	TotalTokens      int   `json:"total_tokens"`
+	Cost             *Cost `json:"cost,omitempty"`
 }
 
 // Choice is a choice object for the Perplexity API.

@@ -455,3 +455,95 @@ The capital of France is Paris. Paris is not only the political capital but also
 		assert.Equal(t, expectedContent, content)
 	})
 }
+
+func TestUsageCost(t *testing.T) {
+	t.Run("Usage without cost field maintains backward compatibility", func(t *testing.T) {
+		usage := perplexity.Usage{
+			PromptTokens:     10,
+			CompletionTokens: 20,
+			TotalTokens:      30,
+		}
+
+		assert.Equal(t, 10, usage.PromptTokens)
+		assert.Equal(t, 20, usage.CompletionTokens)
+		assert.Equal(t, 30, usage.TotalTokens)
+		assert.Nil(t, usage.Cost)
+	})
+
+	t.Run("Usage with cost field includes all cost details", func(t *testing.T) {
+		inputCost := 0.000123
+		outputCost := 0.012486
+		requestCost := 0.000000
+		totalCost := 0.012609
+
+		usage := perplexity.Usage{
+			PromptTokens:     447,
+			CompletionTokens: 100,
+			TotalTokens:      547,
+			Cost: &perplexity.Cost{
+				InputTokensCost:  &inputCost,
+				OutputTokensCost: &outputCost,
+				RequestCost:      &requestCost,
+				TotalCost:        &totalCost,
+			},
+		}
+
+		assert.Equal(t, 447, usage.PromptTokens)
+		assert.Equal(t, 100, usage.CompletionTokens)
+		assert.Equal(t, 547, usage.TotalTokens)
+		assert.NotNil(t, usage.Cost)
+		assert.Equal(t, &inputCost, usage.Cost.InputTokensCost)
+		assert.Equal(t, &outputCost, usage.Cost.OutputTokensCost)
+		assert.Equal(t, &requestCost, usage.Cost.RequestCost)
+		assert.Equal(t, &totalCost, usage.Cost.TotalCost)
+	})
+
+	t.Run("Usage with partial cost information", func(t *testing.T) {
+		totalCost := 0.012609
+
+		usage := perplexity.Usage{
+			PromptTokens:     447,
+			CompletionTokens: 100,
+			TotalTokens:      547,
+			Cost: &perplexity.Cost{
+				TotalCost: &totalCost,
+			},
+		}
+
+		assert.NotNil(t, usage.Cost)
+		assert.Nil(t, usage.Cost.InputTokensCost)
+		assert.Nil(t, usage.Cost.OutputTokensCost)
+		assert.Nil(t, usage.Cost.RequestCost)
+		assert.Equal(t, &totalCost, usage.Cost.TotalCost)
+	})
+}
+
+func TestCostStruct(t *testing.T) {
+	t.Run("Empty cost struct has all nil fields", func(t *testing.T) {
+		cost := perplexity.Cost{}
+
+		assert.Nil(t, cost.InputTokensCost)
+		assert.Nil(t, cost.OutputTokensCost)
+		assert.Nil(t, cost.RequestCost)
+		assert.Nil(t, cost.TotalCost)
+	})
+
+	t.Run("Cost struct with all fields populated", func(t *testing.T) {
+		inputCost := 0.000123
+		outputCost := 0.012486
+		requestCost := 0.000000
+		totalCost := 0.012609
+
+		cost := perplexity.Cost{
+			InputTokensCost:  &inputCost,
+			OutputTokensCost: &outputCost,
+			RequestCost:      &requestCost,
+			TotalCost:        &totalCost,
+		}
+
+		assert.Equal(t, &inputCost, cost.InputTokensCost)
+		assert.Equal(t, &outputCost, cost.OutputTokensCost)
+		assert.Equal(t, &requestCost, cost.RequestCost)
+		assert.Equal(t, &totalCost, cost.TotalCost)
+	})
+}
