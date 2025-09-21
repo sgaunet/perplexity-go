@@ -1,6 +1,9 @@
 package perplexity
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	// DefaultTemperature is the default temperature value for text generation (0.0 to 1.0).
@@ -155,6 +158,9 @@ type WebSearchOptions struct {
 	SearchContextSize string `json:"search_context_size,omitempty" validate:"omitempty,oneof=low medium high"`
 	// UserLocation refines search results based on geography.
 	UserLocation *UserLocation `json:"user_location,omitempty" validate:"omitempty"`
+	// LatestUpdated filters search results to show only pages last updated after this date.
+	// Format: MM/DD/YYYY (e.g., "6/1/2025", "12/31/2024")
+	LatestUpdated string `json:"latest_updated,omitempty" validate:"omitempty"`
 }
 
 // UserLocation specifies an approximate user location for search refinement.
@@ -265,6 +271,20 @@ func WithUserLocation(latitude, longitude float64, country string) CompletionReq
 			Longitude: longitude,
 			Country:   country,
 		}
+	}
+}
+
+// WithLatestUpdated sets the latest updated filter for web search results.
+// Only pages last updated after the specified date will be included in search results.
+// The date is automatically formatted to MM/DD/YYYY format required by the API.
+func WithLatestUpdated(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		if r.WebSearchOptions == nil {
+			r.WebSearchOptions = &WebSearchOptions{}
+		}
+		// Format date as MM/DD/YYYY (without leading zeros for month/day)
+		r.WebSearchOptions.LatestUpdated = fmt.Sprintf("%d/%d/%d",
+			date.Month(), date.Day(), date.Year())
 	}
 }
 
