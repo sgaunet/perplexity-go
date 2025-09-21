@@ -128,10 +128,14 @@ type CompletionRequest struct {
 
 	// SearchAfterDateFilter: Optional. Filters search results to include content published after a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	// Deprecated: Use PublishedAfter instead for API compliance.
+	//go:deprecated
 	SearchAfterDateFilter string `json:"search_after_date_filter,omitempty" validate:"omitempty"`
 
 	// SearchBeforeDateFilter: Optional. Filters search results to include content published before a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	// Deprecated: Use PublishedBefore instead for API compliance.
+	//go:deprecated
 	SearchBeforeDateFilter string `json:"search_before_date_filter,omitempty" validate:"omitempty"`
 
 	// LastUpdatedAfterFilter: Optional. Filters search results to include content last updated after a specific date.
@@ -141,6 +145,14 @@ type CompletionRequest struct {
 	// LastUpdatedBeforeFilter: Optional. Filters search results to include content last updated before a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
 	LastUpdatedBeforeFilter string `json:"last_updated_before_filter,omitempty" validate:"omitempty"`
+
+	// PublishedAfter: Filters search results to include content published after a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	PublishedAfter string `json:"published_after,omitempty" validate:"omitempty"`
+
+	// PublishedBefore: Filters search results to include content published before a specific date.
+	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	PublishedBefore string `json:"published_before,omitempty" validate:"omitempty"`
 
 	// ReasoningEffort: Optional. Controls the computational effort dedicated to each query for sonar-deep-research model.
 	// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses)
@@ -470,18 +482,22 @@ func WithImageFormatFilter(formats []string) CompletionRequestOption {
 // WithSearchAfterDateFilter sets the search after date filter option.
 // Filters search results to include content published after the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+// Deprecated: Use WithPublishedAfter instead for API compliance.
+//go:deprecated
 func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
-		r.SearchAfterDateFilter = date.Format("1/2/2006")
+		r.PublishedAfter = date.Format("1/2/2006")
 	}
 }
 
 // WithSearchBeforeDateFilter sets the search before date filter option.
 // Filters search results to include content published before the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+// Deprecated: Use WithPublishedBefore instead for API compliance.
+//go:deprecated
 func WithSearchBeforeDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
-		r.SearchBeforeDateFilter = date.Format("1/2/2006")
+		r.PublishedBefore = date.Format("1/2/2006")
 	}
 }
 
@@ -500,6 +516,24 @@ func WithLastUpdatedAfterFilter(date time.Time) CompletionRequestOption {
 func WithLastUpdatedBeforeFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.LastUpdatedBeforeFilter = date.Format("1/2/2006")
+	}
+}
+
+// WithPublishedAfter sets the published after filter option.
+// Filters search results to include content published after the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithPublishedAfter(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.PublishedAfter = date.Format("1/2/2006")
+	}
+}
+
+// WithPublishedBefore sets the published before filter option.
+// Filters search results to include content published before the specified date.
+// The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
+func WithPublishedBefore(date time.Time) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.PublishedBefore = date.Format("1/2/2006")
 	}
 }
 
