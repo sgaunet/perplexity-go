@@ -72,6 +72,8 @@ var (
 
 	// ErrReasoningEffortModelRequirement is returned when reasoning_effort is used with an unsupported model.
 	ErrReasoningEffortModelRequirement = errors.New("reasoning_effort is only available for the '" + ModelSonarDeepResearch + "' model")
+	// ErrSearchDomainInvalid is returned when search_domain is set to an invalid value.
+	ErrSearchDomainInvalid = errors.New("search_domain must be 'sec' or empty")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -102,6 +104,7 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 	validators := []func(*CompletionRequest) error{
 		v.validateSearchDomainFilter,
 		v.validateSearchRecencyFilter,
+		v.validateSearchDomain,
 		v.validateStructuredOutput,
 		v.validateImageDomainFilter,
 		v.validateImageFormatFilter,
@@ -136,6 +139,21 @@ func (v *RequestValidator) validateSearchRecencyFilter(req *CompletionRequest) e
 			return ErrSearchRecencyFilter
 		}
 	}
+	return nil
+}
+
+// validateSearchDomain validates the search domain parameter.
+func (v *RequestValidator) validateSearchDomain(req *CompletionRequest) error {
+	// Empty search domain is valid (omitted from request)
+	if req.SearchDomain == "" {
+		return nil
+	}
+
+	// Only "sec" is currently supported
+	if req.SearchDomain != "sec" {
+		return ErrSearchDomainInvalid
+	}
+
 	return nil
 }
 
@@ -358,4 +376,11 @@ func (r *CompletionRequest) ValidateSearchRecencyFilter() error {
 //go:deprecated
 func (r *CompletionRequest) ValidateStructuredOutput() error {
 	return NewRequestValidator().validateStructuredOutput(r)
+}
+
+// ValidateSearchDomain validates the search domain parameter.
+//
+//go:deprecated
+func (r *CompletionRequest) ValidateSearchDomain() error {
+	return NewRequestValidator().validateSearchDomain(r)
 }
