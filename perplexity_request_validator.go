@@ -95,8 +95,6 @@ var (
 	// ErrImageURLContentNil is returned when image URL content is nil.
 	ErrImageURLContentNil = errors.New("image URL content cannot be nil")
 
-	// ErrInvalidContentType is returned when content type is invalid.
-	ErrInvalidContentType = errors.New("invalid content type")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -401,7 +399,7 @@ func (v *RequestValidator) validateMultimodalMessages(req *CompletionRequest) er
 func (v *RequestValidator) validateMultimodalMessage(msg MultimodalMessage) error {
 	// Validate struct tags
 	if err := v.validator.Struct(msg); err != nil {
-		return err
+		return fmt.Errorf("multimodal message validation failed: %w", err)
 	}
 
 	// Validate each content item
@@ -418,7 +416,7 @@ func (v *RequestValidator) validateMultimodalMessage(msg MultimodalMessage) erro
 func (v *RequestValidator) validateContent(content Content) error {
 	// Validate struct tags
 	if err := v.validator.Struct(content); err != nil {
-		return err
+		return fmt.Errorf("content validation failed: %w", err)
 	}
 
 	// Validate specific content types
