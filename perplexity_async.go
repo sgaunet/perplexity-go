@@ -51,6 +51,21 @@ var (
 
 	// ErrAsyncPollingTimeout is returned when polling times out.
 	ErrAsyncPollingTimeout = errors.New("async job polling timeout")
+
+	// ErrJobCompletedNoResult is returned when job is completed but no result is available.
+	ErrJobCompletedNoResult = errors.New("job completed but no result available")
+
+	// ErrJobStillProcessing is returned when job is still processing.
+	ErrJobStillProcessing = errors.New("job is still processing")
+
+	// ErrUnsupportedTimestampFormat is returned when timestamp format is unsupported.
+	ErrUnsupportedTimestampFormat = errors.New("unsupported timestamp format")
+
+	// ErrJobIDEmpty is returned when job ID is empty.
+	ErrJobIDEmpty = errors.New("job ID cannot be empty")
+
+	// ErrJobNotComplete is a sentinel error for when job is not yet complete.
+	ErrJobNotComplete = errors.New("job not complete")
 )
 
 // AsyncJobRequest represents a request to create an async job.
@@ -135,7 +150,11 @@ func (r *AsyncJobRequest) MarshalJSON() ([]byte, error) {
 		wrapper := asyncRequestWrapper{
 			Request: (*alias)(r),
 		}
-		return json.Marshal(wrapper)
+		data, err := json.Marshal(wrapper)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal async request: %w", err)
+		}
+		return data, nil
 	}
 
 	// Create a temporary struct that replaces Messages with MultimodalMessages
@@ -188,7 +207,11 @@ func (r *AsyncJobRequest) MarshalJSON() ([]byte, error) {
 	wrapper := asyncRequestWrapper{
 		Request: temp,
 	}
-	return json.Marshal(wrapper)
+	data, err := json.Marshal(wrapper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal async request: %w", err)
+	}
+	return data, nil
 }
 
 // IsMultimodal returns true if the request contains multimodal messages.
@@ -242,75 +265,32 @@ type AsyncJobResponse struct {
 // UnmarshalJSON implements custom JSON unmarshaling for AsyncJobResponse.
 // The Perplexity async API returns Unix timestamps as integers, but tests may use RFC3339 strings.
 func (r *AsyncJobResponse) UnmarshalJSON(data []byte) error {
-	// First try to unmarshal with the raw JSON to see if we have integers or strings
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	raw, temp, err := r.parseBasicFields(data)
+	if err != nil {
 		return err
 	}
 
-	// Define a temporary struct for the rest of the fields
-	type tempResponse struct {
-		ID       string              `json:"id"`
-		Status   AsyncJobStatus      `json:"status"`
-		Result   *CompletionResponse `json:"result"`
-		Error    *string             `json:"error"`
-		Progress *AsyncJobProgress   `json:"progress"`
-	}
+	r.assignBasicFields(&temp)
+	return r.parseTimestampFields(raw)
+}
 
-	var temp tempResponse
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
-	}
 
-	// Helper function to parse timestamp from interface{}
-	parseTimestamp := func(value interface{}) (time.Time, error) {
-		switch v := value.(type) {
-		case float64:
-			// Unix timestamp as number
-			return time.Unix(int64(v), 0), nil
-		case string:
-			// RFC3339 string (from tests)
-			return time.Parse(time.RFC3339, v)
-		default:
-			return time.Time{}, fmt.Errorf("unsupported timestamp format: %T", v)
-		}
-	}
-
-	// Convert the data to the main struct
-	r.ID = temp.ID
-	r.Status = temp.Status
-	r.Result = temp.Result
-	r.Error = temp.Error
-	r.Progress = temp.Progress
-
-	// Parse CreatedAt
-	if createdAt, exists := raw["created_at"]; exists {
-		parsed, err := parseTimestamp(createdAt)
+// parseTimestamp parses a timestamp from interface{} (either Unix int or RFC3339 string).
+func parseTimestamp(value interface{}) (time.Time, error) {
+	switch v := value.(type) {
+	case float64:
+		// Unix timestamp as number
+		return time.Unix(int64(v), 0), nil
+	case string:
+		// RFC3339 string (from tests)
+		parsed, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			return fmt.Errorf("failed to parse created_at: %w", err)
+			return time.Time{}, fmt.Errorf("failed to parse timestamp: %w", err)
 		}
-		r.CreatedAt = parsed
+		return parsed, nil
+	default:
+		return time.Time{}, ErrUnsupportedTimestampFormat
 	}
-
-	// Parse CompletedAt (optional)
-	if completedAt, exists := raw["completed_at"]; exists && completedAt != nil {
-		parsed, err := parseTimestamp(completedAt)
-		if err != nil {
-			return fmt.Errorf("failed to parse completed_at: %w", err)
-		}
-		r.CompletedAt = &parsed
-	}
-
-	// Parse ExpiresAt
-	if expiresAt, exists := raw["expires_at"]; exists {
-		parsed, err := parseTimestamp(expiresAt)
-		if err != nil {
-			return fmt.Errorf("failed to parse expires_at: %w", err)
-		}
-		r.ExpiresAt = parsed
-	}
-
-	return nil
 }
 
 // AsyncJobProgress represents progress information for a running async job.
@@ -358,7 +338,7 @@ func (r *AsyncJobResponse) GetResult() (*CompletionResponse, error) {
 	switch r.Status {
 	case StatusCompleted:
 		if r.Result == nil {
-			return nil, errors.New("job completed but no result available")
+			return nil, ErrJobCompletedNoResult
 		}
 		return r.Result, nil
 	case StatusFailed:
@@ -378,7 +358,7 @@ func (r *AsyncJobResponse) GetResult() (*CompletionResponse, error) {
 			Message: "job has expired",
 		}
 	case StatusPending, StatusProcessing:
-		return nil, errors.New("job is still processing")
+		return nil, ErrJobStillProcessing
 	default:
 		return nil, &AsyncJobError{
 			JobID:   r.ID,
@@ -386,6 +366,86 @@ func (r *AsyncJobResponse) GetResult() (*CompletionResponse, error) {
 			Message: "unknown job status",
 		}
 	}
+}
+
+// tempResponse is a temporary struct for parsing JSON data.
+type tempResponse struct {
+	ID       string              `json:"id"`
+	Status   AsyncJobStatus      `json:"status"`
+	Result   *CompletionResponse `json:"result"`
+	Error    *string             `json:"error"`
+	Progress *AsyncJobProgress   `json:"progress"`
+}
+
+// parseBasicFields parses the basic non-timestamp fields.
+func (r *AsyncJobResponse) parseBasicFields(data []byte) (map[string]interface{}, tempResponse, error) {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, tempResponse{}, fmt.Errorf("failed to unmarshal raw data: %w", err)
+	}
+
+	var temp tempResponse
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return nil, tempResponse{}, fmt.Errorf("failed to unmarshal temp response: %w", err)
+	}
+
+	return raw, temp, nil
+}
+
+// assignBasicFields assigns the basic fields to the struct.
+func (r *AsyncJobResponse) assignBasicFields(temp *tempResponse) {
+	r.ID = temp.ID
+	r.Status = temp.Status
+	r.Result = temp.Result
+	r.Error = temp.Error
+	r.Progress = temp.Progress
+}
+
+// parseTimestampFields parses all timestamp fields.
+func (r *AsyncJobResponse) parseTimestampFields(raw map[string]interface{}) error {
+	if err := r.parseCreatedAt(raw); err != nil {
+		return err
+	}
+	if err := r.parseCompletedAt(raw); err != nil {
+		return err
+	}
+	return r.parseExpiresAt(raw)
+}
+
+// parseCreatedAt parses the created_at timestamp.
+func (r *AsyncJobResponse) parseCreatedAt(raw map[string]interface{}) error {
+	if createdAt, exists := raw["created_at"]; exists {
+		parsed, err := parseTimestamp(createdAt)
+		if err != nil {
+			return fmt.Errorf("failed to parse created_at: %w", err)
+		}
+		r.CreatedAt = parsed
+	}
+	return nil
+}
+
+// parseCompletedAt parses the completed_at timestamp (optional).
+func (r *AsyncJobResponse) parseCompletedAt(raw map[string]interface{}) error {
+	if completedAt, exists := raw["completed_at"]; exists && completedAt != nil {
+		parsed, err := parseTimestamp(completedAt)
+		if err != nil {
+			return fmt.Errorf("failed to parse completed_at: %w", err)
+		}
+		r.CompletedAt = &parsed
+	}
+	return nil
+}
+
+// parseExpiresAt parses the expires_at timestamp.
+func (r *AsyncJobResponse) parseExpiresAt(raw map[string]interface{}) error {
+	if expiresAt, exists := raw["expires_at"]; exists {
+		parsed, err := parseTimestamp(expiresAt)
+		if err != nil {
+			return fmt.Errorf("failed to parse expires_at: %w", err)
+		}
+		r.ExpiresAt = parsed
+	}
+	return nil
 }
 
 // AsyncJobError represents an error related to async job operations.
@@ -404,10 +464,12 @@ func (e *AsyncJobError) Error() string {
 func (e *AsyncJobError) Is(target error) bool {
 	switch e.Status {
 	case StatusFailed:
-		return target == ErrAsyncJobFailed
+		return errors.Is(target, ErrAsyncJobFailed)
 	case StatusExpired:
-		return target == ErrAsyncJobExpired
+		return errors.Is(target, ErrAsyncJobExpired)
+	case StatusPending, StatusProcessing, StatusCompleted:
+		return errors.Is(target, ErrAsyncJobInvalidStatus)
 	default:
-		return target == ErrAsyncJobInvalidStatus
+		return errors.Is(target, ErrAsyncJobInvalidStatus)
 	}
 }

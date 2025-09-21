@@ -42,6 +42,16 @@ type AsyncJobAPIError struct {
 	RequestID  string
 }
 
+// NewAsyncJobAPIError creates a new AsyncJobAPIError.
+func NewAsyncJobAPIError(statusCode int, message, jobID, requestID string) *AsyncJobAPIError {
+	return &AsyncJobAPIError{
+		StatusCode: statusCode,
+		Message:    message,
+		JobID:      jobID,
+		RequestID:  requestID,
+	}
+}
+
 // Error implements the error interface for AsyncJobAPIError.
 func (e *AsyncJobAPIError) Error() string {
 	if e.JobID != "" {
@@ -65,16 +75,6 @@ func GetAsyncJobError(err error) (*AsyncJobAPIError, bool) {
 	return nil, false
 }
 
-// NewAsyncJobAPIError creates a new AsyncJobAPIError.
-func NewAsyncJobAPIError(statusCode int, message, jobID, requestID string) *AsyncJobAPIError {
-	return &AsyncJobAPIError{
-		StatusCode: statusCode,
-		Message:    message,
-		JobID:      jobID,
-		RequestID:  requestID,
-	}
-}
-
 // IsRetryableAsyncError determines if an async job error is retryable.
 func IsRetryableAsyncError(err error) bool {
 	var asyncErr *AsyncJobAPIError
@@ -95,21 +95,21 @@ func IsRetryableAsyncError(err error) bool {
 	}
 }
 
-// AsyncJobTimeout represents timeout errors for async operations.
-type AsyncJobTimeout struct {
+// AsyncJobTimeoutError represents timeout errors for async operations.
+type AsyncJobTimeoutError struct {
 	JobID   string
 	Timeout string
 	Elapsed string
 }
 
-// Error implements the error interface for AsyncJobTimeout.
-func (e *AsyncJobTimeout) Error() string {
+// Error implements the error interface for AsyncJobTimeoutError.
+func (e *AsyncJobTimeoutError) Error() string {
 	return fmt.Sprintf("async job %s timed out after %s (timeout: %s)", e.JobID, e.Elapsed, e.Timeout)
 }
 
 // Is checks if the error matches ErrAsyncPollingTimeout.
-func (e *AsyncJobTimeout) Is(target error) bool {
-	return target == ErrAsyncPollingTimeout
+func (e *AsyncJobTimeoutError) Is(target error) bool {
+	return errors.Is(target, ErrAsyncPollingTimeout)
 }
 
 // AsyncJobValidationError represents validation errors for async job requests.
@@ -119,14 +119,6 @@ type AsyncJobValidationError struct {
 	Message string
 }
 
-// Error implements the error interface for AsyncJobValidationError.
-func (e *AsyncJobValidationError) Error() string {
-	if e.Field != "" {
-		return fmt.Sprintf("validation error for field '%s': %s (value: %v)", e.Field, e.Message, e.Value)
-	}
-	return fmt.Sprintf("validation error: %s", e.Message)
-}
-
 // NewAsyncJobValidationError creates a new validation error.
 func NewAsyncJobValidationError(field string, value interface{}, message string) *AsyncJobValidationError {
 	return &AsyncJobValidationError{
@@ -134,6 +126,14 @@ func NewAsyncJobValidationError(field string, value interface{}, message string)
 		Value:   value,
 		Message: message,
 	}
+}
+
+// Error implements the error interface for AsyncJobValidationError.
+func (e *AsyncJobValidationError) Error() string {
+	if e.Field != "" {
+		return fmt.Sprintf("validation error for field '%s': %s (value: %v)", e.Field, e.Message, e.Value)
+	}
+	return "validation error: " + e.Message
 }
 
 // IsAsyncJobValidationError checks if an error is an AsyncJobValidationError.

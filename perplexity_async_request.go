@@ -5,6 +5,56 @@ import (
 	"time"
 )
 
+// Constants for async request validation.
+const (
+	// MaxDomainFilterCount is the maximum number of domains allowed in filters.
+	MaxDomainFilterCount = 10
+	// MaxImageFormatFilterCount is the maximum number of image formats allowed.
+	MaxImageFormatFilterCount = 10
+)
+
+// Static validation errors.
+var (
+	// ErrRequestNil is returned when request is nil.
+	ErrRequestNil = errors.New("request cannot be nil")
+	// ErrMessagesRequired is returned when no messages are provided.
+	ErrMessagesRequired = errors.New("at least one message is required")
+	// ErrBothMessageTypes is returned when both regular and multimodal messages are provided.
+	ErrBothMessageTypes = errors.New("cannot specify both messages and multimodal messages")
+	// ErrInvalidReasoningEffort is returned when reasoning effort is invalid.
+	ErrInvalidReasoningEffort = errors.New("reasoning effort must be 'low', 'medium', or 'high'")
+	// ErrInvalidTemperature is returned when temperature is out of range.
+	ErrInvalidTemperature = errors.New("temperature must be between 0 and 2")
+	// ErrInvalidTopP is returned when top_p is out of range.
+	ErrInvalidTopP = errors.New("top_p must be between 0 and 1")
+	// ErrInvalidTopK is returned when top_k is out of range.
+	ErrInvalidTopK = errors.New("top_k must be between 0 and 2048")
+	// ErrInvalidPresencePenalty is returned when presence penalty is out of range.
+	ErrInvalidPresencePenalty = errors.New("presence penalty must be between -2.0 and 2.0")
+	// ErrInvalidFrequencyPenalty is returned when frequency penalty is out of range.
+	ErrInvalidFrequencyPenalty = errors.New("frequency penalty must be between -2.0 and 2.0")
+	// ErrTooManySearchDomains is returned when too many search domains are provided.
+	ErrTooManySearchDomains = errors.New("search domain filter cannot exceed 10 domains")
+	// ErrInvalidSearchMode is returned when search mode is invalid.
+	ErrInvalidSearchMode = errors.New("search mode must be 'academic' or 'web'")
+	// ErrInvalidSearchDomain is returned when search domain is invalid.
+	ErrInvalidSearchDomain = errors.New("search domain must be 'sec'")
+	// ErrTooManyImageDomains is returned when too many image domains are provided.
+	ErrTooManyImageDomains = errors.New("image domain filter cannot exceed 10 domains")
+	// ErrTooManyImageFormats is returned when too many image formats are provided.
+	ErrTooManyImageFormats = errors.New("image format filter cannot exceed 10 formats")
+	// ErrInvalidPublishedAfter is returned when published_after date is invalid.
+	ErrInvalidPublishedAfter = errors.New("invalid published_after date format")
+	// ErrInvalidPublishedBefore is returned when published_before date is invalid.
+	ErrInvalidPublishedBefore = errors.New("invalid published_before date format")
+	// ErrInvalidLastUpdatedAfter is returned when last_updated_after_filter date is invalid.
+	ErrInvalidLastUpdatedAfter = errors.New("invalid last_updated_after_filter date format")
+	// ErrInvalidLastUpdatedBefore is returned when last_updated_before_filter date is invalid.
+	ErrInvalidLastUpdatedBefore = errors.New("invalid last_updated_before_filter date format")
+	// ErrUnsupportedDateFormat is returned when date format is unsupported.
+	ErrUnsupportedDateFormat = errors.New("unsupported date format")
+)
+
 // AsyncJobRequestOption is a functional option for configuring AsyncJobRequest.
 type AsyncJobRequestOption func(*AsyncJobRequest)
 
@@ -193,8 +243,25 @@ func NewAsyncJobRequestValidator() *AsyncJobRequestValidator {
 
 // Validate validates an AsyncJobRequest.
 func (v *AsyncJobRequestValidator) Validate(req *AsyncJobRequest) error {
+	if err := v.validateBasicFields(req); err != nil {
+		return err
+	}
+	if err := v.validateParameters(req); err != nil {
+		return err
+	}
+	if err := v.validateSearchOptions(req); err != nil {
+		return err
+	}
+	if err := v.validateImageOptions(req); err != nil {
+		return err
+	}
+	return v.validateDateFields(req)
+}
+
+// validateBasicFields validates the basic required fields.
+func (v *AsyncJobRequestValidator) validateBasicFields(req *AsyncJobRequest) error {
 	if req == nil {
-		return errors.New("request cannot be nil")
+		return ErrRequestNil
 	}
 
 	// Validate model
@@ -204,15 +271,30 @@ func (v *AsyncJobRequestValidator) Validate(req *AsyncJobRequest) error {
 
 	// Validate messages
 	if len(req.Messages) == 0 && len(req.MultimodalMessages) == 0 {
-		return errors.New("at least one message is required")
+		return ErrMessagesRequired
 	}
 
 	// Cannot have both regular and multimodal messages
 	if len(req.Messages) > 0 && len(req.MultimodalMessages) > 0 {
-		return errors.New("cannot specify both messages and multimodal messages")
+		return ErrBothMessageTypes
 	}
 
-	// Validate reasoning effort
+	return nil
+}
+
+// validateParameters validates the generation parameters.
+func (v *AsyncJobRequestValidator) validateParameters(req *AsyncJobRequest) error {
+	if err := v.validateReasoningEffort(req); err != nil {
+		return err
+	}
+	if err := v.validateGenerationParams(req); err != nil {
+		return err
+	}
+	return v.validatePenaltyParams(req)
+}
+
+// validateReasoningEffort validates the reasoning effort parameter.
+func (v *AsyncJobRequestValidator) validateReasoningEffort(req *AsyncJobRequest) error {
 	if req.ReasoningEffort != "" {
 		validEfforts := map[string]bool{
 			"low":    true,
@@ -220,38 +302,52 @@ func (v *AsyncJobRequestValidator) Validate(req *AsyncJobRequest) error {
 			"high":   true,
 		}
 		if !validEfforts[req.ReasoningEffort] {
-			return errors.New("reasoning effort must be 'low', 'medium', or 'high'")
+			return ErrInvalidReasoningEffort
 		}
 	}
+	return nil
+}
 
+// validateGenerationParams validates temperature, top-p, and top-k parameters.
+func (v *AsyncJobRequestValidator) validateGenerationParams(req *AsyncJobRequest) error {
 	// Validate temperature
 	if req.Temperature < 0 || req.Temperature >= 2 {
-		return errors.New("temperature must be between 0 and 2")
+		return ErrInvalidTemperature
 	}
 
 	// Validate top-p
 	if req.TopP != 0 && (req.TopP <= 0 || req.TopP >= 1) {
-		return errors.New("top_p must be between 0 and 1")
+		return ErrInvalidTopP
 	}
 
 	// Validate top-k
 	if req.TopK < 0 || req.TopK > 2048 {
-		return errors.New("top_k must be between 0 and 2048")
+		return ErrInvalidTopK
 	}
 
+	return nil
+}
+
+// validatePenaltyParams validates presence and frequency penalty parameters.
+func (v *AsyncJobRequestValidator) validatePenaltyParams(req *AsyncJobRequest) error {
 	// Validate presence penalty
 	if req.PresencePenalty < -2.0 || req.PresencePenalty > 2.0 {
-		return errors.New("presence penalty must be between -2.0 and 2.0")
+		return ErrInvalidPresencePenalty
 	}
 
 	// Validate frequency penalty
 	if req.FrequencyPenalty < -2.0 || req.FrequencyPenalty > 2.0 {
-		return errors.New("frequency penalty must be between -2.0 and 2.0")
+		return ErrInvalidFrequencyPenalty
 	}
 
+	return nil
+}
+
+// validateSearchOptions validates search-related options.
+func (v *AsyncJobRequestValidator) validateSearchOptions(req *AsyncJobRequest) error {
 	// Validate search domain filter
-	if len(req.SearchDomainFilter) > 10 {
-		return errors.New("search domain filter cannot exceed 10 domains")
+	if len(req.SearchDomainFilter) > MaxDomainFilterCount {
+		return ErrTooManySearchDomains
 	}
 
 	// Validate search mode
@@ -261,7 +357,7 @@ func (v *AsyncJobRequestValidator) Validate(req *AsyncJobRequest) error {
 			"web":      true,
 		}
 		if !validModes[req.SearchMode] {
-			return errors.New("search mode must be 'academic' or 'web'")
+			return ErrInvalidSearchMode
 		}
 	}
 
@@ -271,42 +367,52 @@ func (v *AsyncJobRequestValidator) Validate(req *AsyncJobRequest) error {
 			"sec": true,
 		}
 		if !validDomains[req.SearchDomain] {
-			return errors.New("search domain must be 'sec'")
+			return ErrInvalidSearchDomain
 		}
 	}
 
+	return nil
+}
+
+// validateImageOptions validates image-related options.
+func (v *AsyncJobRequestValidator) validateImageOptions(req *AsyncJobRequest) error {
 	// Validate image domain filter
-	if len(req.ImageDomainFilter) > 10 {
-		return errors.New("image domain filter cannot exceed 10 domains")
+	if len(req.ImageDomainFilter) > MaxDomainFilterCount {
+		return ErrTooManyImageDomains
 	}
 
 	// Validate image format filter
-	if len(req.ImageFormatFilter) > 10 {
-		return errors.New("image format filter cannot exceed 10 formats")
+	if len(req.ImageFormatFilter) > MaxImageFormatFilterCount {
+		return ErrTooManyImageFormats
 	}
 
+	return nil
+}
+
+// validateDateFields validates date-related fields.
+func (v *AsyncJobRequestValidator) validateDateFields(req *AsyncJobRequest) error {
 	// Validate date formats (basic validation)
 	if req.PublishedAfter != "" {
 		if err := v.validateDateString(req.PublishedAfter); err != nil {
-			return errors.New("invalid published_after date format")
+			return ErrInvalidPublishedAfter
 		}
 	}
 
 	if req.PublishedBefore != "" {
 		if err := v.validateDateString(req.PublishedBefore); err != nil {
-			return errors.New("invalid published_before date format")
+			return ErrInvalidPublishedBefore
 		}
 	}
 
 	if req.LastUpdatedAfterFilter != "" {
 		if err := v.validateDateString(req.LastUpdatedAfterFilter); err != nil {
-			return errors.New("invalid last_updated_after_filter date format")
+			return ErrInvalidLastUpdatedAfter
 		}
 	}
 
 	if req.LastUpdatedBeforeFilter != "" {
 		if err := v.validateDateString(req.LastUpdatedBeforeFilter); err != nil {
-			return errors.New("invalid last_updated_before_filter date format")
+			return ErrInvalidLastUpdatedBefore
 		}
 	}
 
@@ -329,7 +435,7 @@ func (v *AsyncJobRequestValidator) validateDateString(dateStr string) error {
 		}
 	}
 
-	return errors.New("unsupported date format")
+	return ErrUnsupportedDateFormat
 }
 
 // ValidateAsyncJobRequest is a convenience function for validating async job requests.

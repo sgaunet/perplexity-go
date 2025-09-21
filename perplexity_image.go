@@ -15,6 +15,9 @@ import (
 const (
 	// MaxImageSizeBytes is the maximum allowed image size (50MB) according to Perplexity API.
 	MaxImageSizeBytes = 50 * 1024 * 1024
+	// TokenEstimationDivisor is used to estimate token usage from image pixels
+	// Based on empirical measurements of Perplexity API token consumption.
+	TokenEstimationDivisor = 750
 )
 
 // Error definitions for image processing.
@@ -36,6 +39,12 @@ var (
 
 	// ErrImageURLInvalid is returned when an image URL is malformed.
 	ErrImageURLInvalid = errors.New("invalid image URL format")
+
+	// ErrImageURLBadStatus is returned when image URL returns a non-2xx status.
+	ErrImageURLBadStatus = errors.New("image URL returned bad status")
+
+	// ErrInvalidContentType is returned when image content type is invalid.
+	ErrInvalidContentType = errors.New("invalid content type")
 )
 
 // SupportedImageFormats contains the image formats supported by the Perplexity API.
@@ -150,16 +159,27 @@ func (p *ImageProcessor) CheckImageURLAccessibility(imageURL string) error {
 
 	// Check if response is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("image URL returned status %d", resp.StatusCode)
+		return ErrImageURLBadStatus
 	}
 
 	// Optionally validate content type
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" && !p.isValidImageContentType(contentType) {
-		return fmt.Errorf("invalid content type: %s", contentType)
+		return ErrInvalidContentType
 	}
 
 	return nil
+}
+
+
+// EstimateTokenUsage estimates the token usage for an image based on its dimensions.
+// According to Perplexity documentation: tokens = (width px × height px) / 750
+// This function requires image dimensions to be provided separately.
+func (p *ImageProcessor) EstimateTokenUsage(width, height int) int {
+	if width <= 0 || height <= 0 {
+		return 0
+	}
+	return (width * height) / TokenEstimationDivisor
 }
 
 // getImageFormatFromPath extracts the image format from a file path.
@@ -203,14 +223,4 @@ func (p *ImageProcessor) isValidImageContentType(contentType string) bool {
 		}
 	}
 	return false
-}
-
-// EstimateTokenUsage estimates the token usage for an image based on its dimensions.
-// According to Perplexity documentation: tokens = (width px × height px) / 750
-// This function requires image dimensions to be provided separately.
-func (p *ImageProcessor) EstimateTokenUsage(width, height int) int {
-	if width <= 0 || height <= 0 {
-		return 0
-	}
-	return (width * height) / 750
 }

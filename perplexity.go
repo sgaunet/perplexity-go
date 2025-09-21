@@ -262,27 +262,14 @@ func (s *Client) CreateAsyncJob(req *AsyncJobRequest) (*AsyncJobResponse, error)
 
 // CreateAsyncJobWithContext creates a new async job with the given context.
 func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobRequest) (*AsyncJobResponse, error) {
-	if req == nil {
-		return nil, ErrNilRequest
+	if err := s.validateAsyncJobRequest(req); err != nil {
+		return nil, err
 	}
 
-	// Validate that model is sonar-deep-research
-	if req.Model != ModelSonarDeepResearch {
-		return nil, ErrAsyncModelRequired
-	}
-
-	requestBody, err := json.Marshal(req)
+	httpReq, err := s.prepareAsyncJobRequest(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, err
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.asyncEndpoint, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
-	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -290,29 +277,7 @@ func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobReq
 	}
 	defer resp.Body.Close()
 
-	// Check return status code
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
-		}
-		return nil, ParseErrorMessage(body)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var result AsyncJobResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
-	}
-
-	return &result, nil
+	return s.handleAsyncJobResponse(resp)
 }
 
 // GetAsyncJob retrieves the status and result of an async job by ID.
@@ -323,7 +288,7 @@ func (s *Client) GetAsyncJob(jobID string) (*AsyncJobResponse, error) {
 // GetAsyncJobWithContext retrieves the status and result of an async job by ID with the given context.
 func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*AsyncJobResponse, error) {
 	if jobID == "" {
-		return nil, errors.New("job ID cannot be empty")
+		return nil, ErrJobIDEmpty
 	}
 
 	url := fmt.Sprintf("%s/%s", s.asyncEndpoint, jobID)
@@ -419,4 +384,64 @@ func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int
 	}
 
 	return &result, nil
+}
+
+// validateAsyncJobRequest validates the async job request.
+func (s *Client) validateAsyncJobRequest(req *AsyncJobRequest) error {
+	if req == nil {
+		return ErrNilRequest
+	}
+	if req.Model != ModelSonarDeepResearch {
+		return ErrAsyncModelRequired
+	}
+	return nil
+}
+
+// prepareAsyncJobRequest prepares the HTTP request for async job creation.
+func (s *Client) prepareAsyncJobRequest(ctx context.Context, req *AsyncJobRequest) (*http.Request, error) {
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.asyncEndpoint, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	return httpReq, nil
+}
+
+// handleAsyncJobResponse handles the HTTP response for async job creation.
+func (s *Client) handleAsyncJobResponse(resp *http.Response) (*AsyncJobResponse, error) {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return s.handleAsyncJobErrorResponse(resp)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// handleAsyncJobErrorResponse handles error responses for async job creation.
+func (s *Client) handleAsyncJobErrorResponse(resp *http.Response) (*AsyncJobResponse, error) {
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+	}
+	return nil, ParseErrorMessage(body)
 }

@@ -164,13 +164,26 @@ type CompletionRequest struct {
 	ReasoningEffort string `json:"reasoning_effort,omitempty" validate:"omitempty,oneof=low medium high"`
 }
 
+// NewCompletionRequest creates a new completion request.
+func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
+	r := DefaultCompletionRequest()
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
+}
+
 // MarshalJSON implements custom JSON marshaling for CompletionRequest.
 // When MultimodalMessages are present, they are used instead of the regular Messages field.
 func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 	// If no multimodal messages, use standard marshaling
 	if len(r.MultimodalMessages) == 0 {
 		type alias CompletionRequest
-		return json.Marshal((*alias)(r))
+		data, err := json.Marshal((*alias)(r))
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal completion request: %w", err)
+		}
+		return data, nil
 	}
 
 	// Create a temporary struct that replaces Messages with MultimodalMessages
@@ -232,7 +245,11 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 		WebSearchOptions:         r.WebSearchOptions,
 	}
 
-	return json.Marshal(temp)
+	data, err := json.Marshal(temp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal multimodal request: %w", err)
+	}
+	return data, nil
 }
 
 // IsMultimodal returns true if the request contains multimodal messages.
@@ -683,11 +700,3 @@ func WithImageFromURL(_ string) CompletionRequestOption {
 	}
 }
 
-// NewCompletionRequest creates a new completion request.
-func NewCompletionRequest(opts ...CompletionRequestOption) *CompletionRequest {
-	r := DefaultCompletionRequest()
-	for _, opt := range opts {
-		opt(r)
-	}
-	return r
-}
