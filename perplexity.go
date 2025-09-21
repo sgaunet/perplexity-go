@@ -18,6 +18,9 @@ import (
 // DefaultEndpoint is the default endpoint for the Perplexity API.
 const DefaultEndpoint = "https://api.perplexity.ai/chat/completions"
 
+// AsyncJobEndpoint is the base endpoint for async operations.
+const AsyncJobEndpoint = "https://api.perplexity.ai/async/chat/completions"
+
 // DefaultTimeout is the default timeout for the HTTP client.
 const DefaultTimeout = 30 * time.Second
 
@@ -41,9 +44,10 @@ var (
 
 // Client is a client for the Perplexity API.
 type Client struct {
-	endpoint   string
-	apiKey     string
-	httpClient *http.Client
+	endpoint      string
+	asyncEndpoint string
+	apiKey        string
+	httpClient    *http.Client
 }
 
 // NewClient creates a new Perplexity API client.
@@ -51,8 +55,9 @@ type Client struct {
 // The default model is llama-3-sonar-small-32k-online.
 func NewClient(apiKey string) *Client {
 	s := &Client{
-		apiKey:   apiKey,
-		endpoint: DefaultEndpoint,
+		apiKey:        apiKey,
+		endpoint:      DefaultEndpoint,
+		asyncEndpoint: AsyncJobEndpoint,
 		httpClient: &http.Client{
 			Timeout: DefaultTimeout,
 		},
@@ -63,6 +68,11 @@ func NewClient(apiKey string) *Client {
 // SetEndpoint sets the API endpoint.
 func (s *Client) SetEndpoint(endpoint string) {
 	s.endpoint = endpoint
+}
+
+// SetAsyncEndpoint sets the async API endpoint.
+func (s *Client) SetAsyncEndpoint(endpoint string) {
+	s.asyncEndpoint = endpoint
 }
 
 // SetHTTPClient sets the HTTP client.
@@ -243,4 +253,170 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 	}
 
 	return nil
+}
+
+// CreateAsyncJob creates a new async job for long-running Sonar Deep Research tasks.
+func (s *Client) CreateAsyncJob(req *AsyncJobRequest) (*AsyncJobResponse, error) {
+	return s.CreateAsyncJobWithContext(context.Background(), req)
+}
+
+// CreateAsyncJobWithContext creates a new async job with the given context.
+func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobRequest) (*AsyncJobResponse, error) {
+	if req == nil {
+		return nil, ErrNilRequest
+	}
+
+	// Validate that model is sonar-deep-research
+	if req.Model != ModelSonarDeepResearch {
+		return nil, ErrAsyncModelRequired
+	}
+
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.asyncEndpoint, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// GetAsyncJob retrieves the status and result of an async job by ID.
+func (s *Client) GetAsyncJob(jobID string) (*AsyncJobResponse, error) {
+	return s.GetAsyncJobWithContext(context.Background(), jobID)
+}
+
+// GetAsyncJobWithContext retrieves the status and result of an async job by ID with the given context.
+func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*AsyncJobResponse, error) {
+	if jobID == "" {
+		return nil, errors.New("job ID cannot be empty")
+	}
+
+	url := fmt.Sprintf("%s/%s", s.asyncEndpoint, jobID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrAsyncJobNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// ListAsyncJobs retrieves a list of async jobs with optional pagination.
+func (s *Client) ListAsyncJobs(limit, offset int) (*AsyncJobListResponse, error) {
+	return s.ListAsyncJobsWithContext(context.Background(), limit, offset)
+}
+
+// ListAsyncJobsWithContext retrieves a list of async jobs with the given context and optional pagination.
+func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int) (*AsyncJobListResponse, error) {
+	if limit <= 0 {
+		limit = 20 // Default limit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	url := fmt.Sprintf("%s?limit=%d&offset=%d", s.asyncEndpoint, limit, offset)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
 }
