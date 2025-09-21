@@ -211,7 +211,7 @@ func (s *Client) calculateNextInterval(currentInterval time.Duration, opts *Asyn
 	// Add jitter if enabled
 	if opts.JitterEnabled {
 		jitterRange := float64(nextInterval) * JitterPercentage
-		jitter := time.Duration(jitterRange * (rand.Float64() - JitterOffset)) // ±10% jitter
+		jitter := time.Duration(jitterRange * (rand.Float64() - JitterOffset)) //nolint:gosec // G404: Math rand is acceptable for jitter timing
 		nextInterval += jitter
 	}
 

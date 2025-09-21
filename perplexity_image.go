@@ -1,6 +1,7 @@
 package perplexity
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -18,6 +19,8 @@ const (
 	// TokenEstimationDivisor is used to estimate token usage from image pixels
 	// Based on empirical measurements of Perplexity API token consumption.
 	TokenEstimationDivisor = 750
+	// HTTPTimeoutSeconds is the timeout for HTTP requests to check image URL accessibility.
+	HTTPTimeoutSeconds = 10
 )
 
 // Error definitions for image processing.
@@ -85,7 +88,7 @@ func (p *ImageProcessor) EncodeImageFromFile(filepath string) (string, error) {
 	}
 
 	// Read file content
-	fileData, err := os.ReadFile(filepath)
+	fileData, err := os.ReadFile(filepath) //nolint:gosec // G304: File path comes from validated user input for image processing
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrImageReadFailed, err)
 	}
@@ -145,13 +148,18 @@ func (p *ImageProcessor) ValidateImageSize(size int64) error {
 
 // CheckImageURLAccessibility performs a HEAD request to verify the image URL is accessible.
 // This is an optional validation that can be used to verify URLs before sending to the API.
-func (p *ImageProcessor) CheckImageURLAccessibility(imageURL string) error {
+func (p *ImageProcessor) CheckImageURLAccessibility(ctx context.Context, imageURL string) error {
 	if err := p.ValidateImageURL(imageURL); err != nil {
 		return err
 	}
 
 	// Perform HEAD request to check if URL is accessible
-	resp, err := http.Head(imageURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, imageURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("image URL not accessible: %w", err)
 	}
@@ -170,7 +178,6 @@ func (p *ImageProcessor) CheckImageURLAccessibility(imageURL string) error {
 
 	return nil
 }
-
 
 // EstimateTokenUsage estimates the token usage for an image based on its dimensions.
 // According to Perplexity documentation: tokens = (width px × height px) / 750
