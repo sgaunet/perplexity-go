@@ -312,6 +312,8 @@ func (v *RequestValidator) validateDateFilters(req *CompletionRequest) error {
 		req.SearchBeforeDateFilter,
 		req.LastUpdatedAfterFilter,
 		req.LastUpdatedBeforeFilter,
+		req.PublishedAfter,
+		req.PublishedBefore,
 	}
 
 	for _, dateStr := range dateFields {

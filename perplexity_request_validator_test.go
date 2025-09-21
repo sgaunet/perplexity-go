@@ -867,8 +867,9 @@ func TestValidateDateFilters(t *testing.T) {
 
 		err := validator.ValidateRequest(req)
 		assert.NoError(t, err)
-		assert.Equal(t, "3/1/2025", req.SearchAfterDateFilter)
-		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+		// Deprecated functions now set the new API-compliant fields
+		assert.Equal(t, "3/1/2025", req.PublishedAfter)
+		assert.Equal(t, "12/31/2024", req.PublishedBefore)
 		assert.Equal(t, "1/15/2025", req.LastUpdatedAfterFilter)
 		assert.Equal(t, "7/4/2024", req.LastUpdatedBeforeFilter)
 	})

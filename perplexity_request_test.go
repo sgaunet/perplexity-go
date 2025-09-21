@@ -474,16 +474,20 @@ func TestStructuredOutputJSONSerialization(t *testing.T) {
 }
 
 func TestDateFilterOptions(t *testing.T) {
-	t.Run("WithSearchAfterDateFilter sets the search after date filter", func(t *testing.T) {
+	t.Run("WithSearchAfterDateFilter sets the published after filter (deprecated but functional)", func(t *testing.T) {
 		date := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 		req := perplexity.NewCompletionRequest(perplexity.WithSearchAfterDateFilter(date))
-		assert.Equal(t, "3/1/2025", req.SearchAfterDateFilter)
+		// Deprecated function now sets the new API-compliant field
+		assert.Equal(t, "3/1/2025", req.PublishedAfter)
+		assert.Empty(t, req.SearchAfterDateFilter)
 	})
 
-	t.Run("WithSearchBeforeDateFilter sets the search before date filter", func(t *testing.T) {
+	t.Run("WithSearchBeforeDateFilter sets the published before filter (deprecated but functional)", func(t *testing.T) {
 		date := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
 		req := perplexity.NewCompletionRequest(perplexity.WithSearchBeforeDateFilter(date))
-		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+		// Deprecated function now sets the new API-compliant field
+		assert.Equal(t, "12/31/2024", req.PublishedBefore)
+		assert.Empty(t, req.SearchBeforeDateFilter)
 	})
 
 	t.Run("WithLastUpdatedAfterFilter sets the last updated after filter", func(t *testing.T) {
@@ -499,35 +503,65 @@ func TestDateFilterOptions(t *testing.T) {
 	})
 
 	t.Run("date formatting handles single-digit months and days correctly", func(t *testing.T) {
-		// Test single-digit month and day
+		// Test single-digit month and day with deprecated function (now sets new field)
 		date1 := time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC)
 		req1 := perplexity.NewCompletionRequest(perplexity.WithSearchAfterDateFilter(date1))
-		assert.Equal(t, "1/5/2025", req1.SearchAfterDateFilter)
+		assert.Equal(t, "1/5/2025", req1.PublishedAfter)
 
-		// Test double-digit month and day
+		// Test double-digit month and day with deprecated function (now sets new field)
 		date2 := time.Date(2025, 12, 25, 0, 0, 0, 0, time.UTC)
 		req2 := perplexity.NewCompletionRequest(perplexity.WithSearchBeforeDateFilter(date2))
-		assert.Equal(t, "12/25/2025", req2.SearchBeforeDateFilter)
+		assert.Equal(t, "12/25/2025", req2.PublishedBefore)
 
-		// Test leap year date
+		// Test leap year date with non-deprecated function
 		date3 := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC)
 		req3 := perplexity.NewCompletionRequest(perplexity.WithLastUpdatedAfterFilter(date3))
 		assert.Equal(t, "2/29/2024", req3.LastUpdatedAfterFilter)
 	})
 
-	t.Run("multiple date filters can be set together", func(t *testing.T) {
-		afterDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Run("WithPublishedAfter sets the published after filter", func(t *testing.T) {
+		date := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithPublishedAfter(date))
+		assert.Equal(t, "3/1/2025", req.PublishedAfter)
+	})
+
+	t.Run("WithPublishedBefore sets the published before filter", func(t *testing.T) {
+		date := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+		req := perplexity.NewCompletionRequest(perplexity.WithPublishedBefore(date))
+		assert.Equal(t, "12/31/2024", req.PublishedBefore)
+	})
+
+	t.Run("deprecated functions now set new fields for API compliance", func(t *testing.T) {
+		afterDate := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 		beforeDate := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
-		
+
+		// Test that deprecated functions now set the new API-compliant fields
 		req := perplexity.NewCompletionRequest(
 			perplexity.WithSearchAfterDateFilter(afterDate),
 			perplexity.WithSearchBeforeDateFilter(beforeDate),
+		)
+
+		// Old deprecated functions should now set the new fields
+		assert.Equal(t, "3/1/2025", req.PublishedAfter)
+		assert.Equal(t, "12/31/2024", req.PublishedBefore)
+		// Old fields should be empty since deprecated functions use new fields
+		assert.Empty(t, req.SearchAfterDateFilter)
+		assert.Empty(t, req.SearchBeforeDateFilter)
+	})
+
+	t.Run("multiple date filters can be set together", func(t *testing.T) {
+		afterDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		beforeDate := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithPublishedAfter(afterDate),
+			perplexity.WithPublishedBefore(beforeDate),
 			perplexity.WithLastUpdatedAfterFilter(afterDate),
 			perplexity.WithLastUpdatedBeforeFilter(beforeDate),
 		)
 
-		assert.Equal(t, "1/1/2024", req.SearchAfterDateFilter)
-		assert.Equal(t, "12/31/2024", req.SearchBeforeDateFilter)
+		assert.Equal(t, "1/1/2024", req.PublishedAfter)
+		assert.Equal(t, "12/31/2024", req.PublishedBefore)
 		assert.Equal(t, "1/1/2024", req.LastUpdatedAfterFilter)
 		assert.Equal(t, "12/31/2024", req.LastUpdatedBeforeFilter)
 	})
