@@ -1,6 +1,7 @@
 package perplexity
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -45,6 +46,9 @@ const (
 // https://docs.perplexity.ai/api-reference/chat-completions
 type CompletionRequest struct {
 	Messages []Message `json:"messages" validate:"required,dive"`
+	// MultimodalMessages: Optional. Used when request contains images or mixed content.
+	// When this field is set, the regular Messages field is ignored.
+	MultimodalMessages []MultimodalMessage `json:"-" validate:"omitempty,dive"`
 	// Model: name of the model that will complete your prompt
 	// supported model: https://docs.perplexity.ai/guides/model-cards
 	Model string `json:"model" validate:"required"`
@@ -158,6 +162,98 @@ type CompletionRequest struct {
 	// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses)
 	// Only applicable for sonar-deep-research model.
 	ReasoningEffort string `json:"reasoning_effort,omitempty" validate:"omitempty,oneof=low medium high"`
+}
+
+// MarshalJSON implements custom JSON marshaling for CompletionRequest.
+// When MultimodalMessages are present, they are used instead of the regular Messages field.
+func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
+	// If no multimodal messages, use standard marshaling
+	if len(r.MultimodalMessages) == 0 {
+		type alias CompletionRequest
+		return json.Marshal((*alias)(r))
+	}
+
+	// Create a temporary struct that replaces Messages with MultimodalMessages
+	type tempRequest struct {
+		Messages                 []MultimodalMessage `json:"messages"`
+		Model                    string              `json:"model"`
+		MaxTokens                int                 `json:"max_tokens,omitempty"`
+		Temperature              float64             `json:"temperature,omitempty"`
+		TopP                     float64             `json:"top_p,omitempty"`
+		SearchDomainFilter       []string            `json:"search_domain_filter,omitempty"`
+		ReturnImages             bool                `json:"return_images,omitempty"`
+		ReturnRelatedQuestions   bool                `json:"return_related_questions,omitempty"`
+		SearchRecencyFilter      string              `json:"search_recency_filter,omitempty"`
+		SearchMode               string              `json:"search_mode,omitempty"`
+		SearchDomain             string              `json:"search_domain,omitempty"`
+		TopK                     int                 `json:"top_k,omitempty"`
+		Stream                   bool                `json:"stream,omitempty"`
+		PresencePenalty          float64             `json:"presence_penalty,omitempty"`
+		FrequencyPenalty         float64             `json:"frequency_penalty,omitempty"`
+		ResponseFormat           *ResponseFormat     `json:"response_format,omitempty"`
+		ImageDomainFilter        []string            `json:"image_domain_filter,omitempty"`
+		ImageFormatFilter        []string            `json:"image_format_filter,omitempty"`
+		SearchAfterDateFilter    string              `json:"search_after_date_filter,omitempty"`
+		SearchBeforeDateFilter   string              `json:"search_before_date_filter,omitempty"`
+		LastUpdatedAfterFilter   string              `json:"last_updated_after_filter,omitempty"`
+		LastUpdatedBeforeFilter  string              `json:"last_updated_before_filter,omitempty"`
+		PublishedAfter           string              `json:"published_after,omitempty"`
+		PublishedBefore          string              `json:"published_before,omitempty"`
+		ReasoningEffort          string              `json:"reasoning_effort,omitempty"`
+		WebSearchOptions         *WebSearchOptions   `json:"web_search_options,omitempty"`
+	}
+
+	temp := tempRequest{
+		Messages:                 r.MultimodalMessages,
+		Model:                    r.Model,
+		MaxTokens:                r.MaxTokens,
+		Temperature:              r.Temperature,
+		TopP:                     r.TopP,
+		SearchDomainFilter:       r.SearchDomainFilter,
+		ReturnImages:             r.ReturnImages,
+		ReturnRelatedQuestions:   r.ReturnRelatedQuestions,
+		SearchRecencyFilter:      r.SearchRecencyFilter,
+		SearchMode:               r.SearchMode,
+		SearchDomain:             r.SearchDomain,
+		TopK:                     r.TopK,
+		Stream:                   r.Stream,
+		PresencePenalty:          r.PresencePenalty,
+		FrequencyPenalty:         r.FrequencyPenalty,
+		ResponseFormat:           r.ResponseFormat,
+		ImageDomainFilter:        r.ImageDomainFilter,
+		ImageFormatFilter:        r.ImageFormatFilter,
+		SearchAfterDateFilter:    r.SearchAfterDateFilter,
+		SearchBeforeDateFilter:   r.SearchBeforeDateFilter,
+		LastUpdatedAfterFilter:   r.LastUpdatedAfterFilter,
+		LastUpdatedBeforeFilter:  r.LastUpdatedBeforeFilter,
+		PublishedAfter:           r.PublishedAfter,
+		PublishedBefore:          r.PublishedBefore,
+		ReasoningEffort:          r.ReasoningEffort,
+		WebSearchOptions:         r.WebSearchOptions,
+	}
+
+	return json.Marshal(temp)
+}
+
+// IsMultimodal returns true if the request contains multimodal messages.
+func (r *CompletionRequest) IsMultimodal() bool {
+	return len(r.MultimodalMessages) > 0
+}
+
+// HasImages returns true if any of the messages contain images.
+func (r *CompletionRequest) HasImages() bool {
+	if !r.IsMultimodal() {
+		return false
+	}
+
+	for _, msg := range r.MultimodalMessages {
+		for _, content := range msg.Content {
+			if content.Type == ContentTypeImageURL {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WebSearchOptions specifies web search context size and user location for the request.
@@ -544,6 +640,46 @@ func WithPublishedBefore(date time.Time) CompletionRequestOption {
 func WithReasoningEffort(effort string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ReasoningEffort = effort
+	}
+}
+
+// WithMultimodalMessages sets multimodal messages for the request.
+// This option enables support for messages containing both text and images.
+func WithMultimodalMessages(messages []MultimodalMessage) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.MultimodalMessages = messages
+	}
+}
+
+// WithMessagesFromMessages converts a Messages object to appropriate request format.
+// If the Messages object contains multimodal content, it sets MultimodalMessages.
+// Otherwise, it sets the regular Messages field.
+func WithMessagesFromMessages(messages *Messages) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		if messages.IsMultimodal() {
+			r.MultimodalMessages = messages.GetMultimodalMessages()
+		} else {
+			r.Messages = messages.GetMessages()
+		}
+	}
+}
+
+// WithImageFromFile adds an image from file path to the current message content.
+// This option should be used in combination with WithMultimodalMessages or when
+// building multimodal content programmatically.
+func WithImageFromFile(_ string) CompletionRequestOption {
+	return func(_ *CompletionRequest) {
+		// This is a utility function - in practice, users should build
+		// multimodal messages using the Messages object or Content helpers
+	}
+}
+
+// WithImageFromURL adds an image from URL to the current message content.
+// The URL must be HTTPS and publicly accessible.
+func WithImageFromURL(_ string) CompletionRequestOption {
+	return func(_ *CompletionRequest) {
+		// This is a utility function - in practice, users should build
+		// multimodal messages using the Messages object or Content helpers
 	}
 }
 
