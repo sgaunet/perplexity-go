@@ -334,6 +334,34 @@ func TestWithUserLocation(t *testing.T) {
 	})
 }
 
+func TestWithLatestUpdated(t *testing.T) {
+	t.Run("sets the latest updated filter", func(t *testing.T) {
+		date, _ := time.Parse("2006-01-02", "2025-06-01")
+		req := perplexity.NewCompletionRequest(perplexity.WithLatestUpdated(date))
+
+		assert.NotNil(t, req.WebSearchOptions)
+		assert.Equal(t, "6/1/2025", req.WebSearchOptions.LatestUpdated)
+	})
+
+	t.Run("initializes WebSearchOptions if nil", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		req.WebSearchOptions = nil
+
+		date, _ := time.Parse("2006-01-02", "2025-12-31")
+		perplexity.WithLatestUpdated(date)(req)
+
+		assert.NotNil(t, req.WebSearchOptions)
+		assert.Equal(t, "12/31/2025", req.WebSearchOptions.LatestUpdated)
+	})
+
+	t.Run("formats date correctly without leading zeros", func(t *testing.T) {
+		date, _ := time.Parse("2006-01-02", "2025-03-05")
+		req := perplexity.NewCompletionRequest(perplexity.WithLatestUpdated(date))
+
+		assert.Equal(t, "3/5/2025", req.WebSearchOptions.LatestUpdated)
+	})
+}
+
 func TestWithResponseFormat(t *testing.T) {
 	t.Run("creates a new CompletionRequest with response format", func(t *testing.T) {
 		responseFormat := &perplexity.ResponseFormat{
