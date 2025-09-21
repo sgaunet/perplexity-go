@@ -99,6 +99,14 @@ func TestWithSearchMode(t *testing.T) {
 	})
 }
 
+func TestWithSearchDomain(t *testing.T) {
+	t.Run("creates a new CompletionRequest with search domain", func(t *testing.T) {
+		searchDomain := "sec"
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchDomain(searchDomain))
+		assert.Equal(t, req.SearchDomain, searchDomain)
+	})
+}
+
 func TestWebSearchOptionsValidation(t *testing.T) {
 	validate := validator.New()
 	t.Run("valid search_context_size values", func(t *testing.T) {

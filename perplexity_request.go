@@ -76,6 +76,9 @@ type CompletionRequest struct {
 	// SearchMode: Controls the search mode used for the request.
 	// Options: "academic" (prioritizes scholarly sources like peer-reviewed papers and academic journals), "web" (default)
 	SearchMode string `json:"search_mode,omitempty" validate:"omitempty,oneof=academic web"`
+	// SearchDomain: Restricts search to a specific domain type.
+	// Options: "sec" (search within SEC regulatory documents like 10-K, 10-Q, 8-K reports)
+	SearchDomain string `json:"search_domain,omitempty" validate:"omitempty,oneof=sec"`
 	// TopK: The number of tokens to keep for highest top-k filtering,
 	// specified as an integer between 0 and 2048 inclusive.
 	// If set to 0, top-k filtering is disabled.
@@ -201,6 +204,7 @@ func DefaultCompletionRequest() *CompletionRequest {
 		ReturnRelatedQuestions: false,
 		SearchRecencyFilter:    DefaultSearchRecencyFilter,
 		SearchMode:             DefaultSearchMode,
+		SearchDomain:           "",
 		TopK:                   DefaultTopK,
 		Stream:                 false,
 		PresencePenalty:        DefaultPresencePenalty,
@@ -340,6 +344,14 @@ func WithSearchRecencyFilter(searchRecencyFilter string) CompletionRequestOption
 func WithSearchMode(searchMode string) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.SearchMode = searchMode
+	}
+}
+
+// WithSearchDomain sets the search domain option.
+// Options: "sec" (search within SEC regulatory documents like 10-K, 10-Q, 8-K reports).
+func WithSearchDomain(searchDomain string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.SearchDomain = searchDomain
 	}
 }
 

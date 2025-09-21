@@ -321,6 +321,34 @@ func TestValidateSearchDomainFilter(t *testing.T) {
 	})
 }
 
+func TestValidateSearchDomain(t *testing.T) {
+	t.Run("returns no error if SearchDomain is empty", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		err := req.ValidateSearchDomain()
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns no error if SearchDomain is set to 'sec'", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchDomain("sec"))
+		err := req.ValidateSearchDomain()
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns error if SearchDomain is set to invalid value", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchDomain("invalid"))
+		err := req.ValidateSearchDomain()
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrSearchDomainInvalid, err)
+	})
+
+	t.Run("returns error if SearchDomain is set to 'web'", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithSearchDomain("web"))
+		err := req.ValidateSearchDomain()
+		assert.Error(t, err)
+		assert.Equal(t, perplexity.ErrSearchDomainInvalid, err)
+	})
+}
+
 func TestValidateImageDomainFilter(t *testing.T) {
 	validator := perplexity.NewRequestValidator()
 
@@ -687,6 +715,16 @@ func TestBackwardCompatibility(t *testing.T) {
 			perplexity.WithJSONSchemaResponseFormat(map[string]interface{}{"type": "object"}),
 		)
 		err := req.ValidateStructuredOutput()
+		assert.NoError(t, err)
+	})
+
+	t.Run("ValidateSearchDomain method still works", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithModel(perplexity.DefaultModel),
+			perplexity.WithSearchDomain("sec"),
+		)
+		err := req.ValidateSearchDomain()
 		assert.NoError(t, err)
 	})
 }
