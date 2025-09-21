@@ -1,0 +1,216 @@
+package perplexity
+
+import (
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// Image processing constants and errors.
+const (
+	// MaxImageSizeBytes is the maximum allowed image size (50MB) according to Perplexity API.
+	MaxImageSizeBytes = 50 * 1024 * 1024
+)
+
+// Error definitions for image processing.
+var (
+	// ErrImageTooLarge is returned when an image exceeds the 50MB size limit.
+	ErrImageTooLarge = errors.New("image size exceeds 50MB limit")
+
+	// ErrImageFormatNotSupported is returned when an image format is not supported.
+	ErrImageFormatNotSupported = errors.New("image format not supported (use PNG, JPEG, WEBP, or GIF)")
+
+	// ErrImageURLNotHTTPS is returned when an image URL does not use HTTPS protocol.
+	ErrImageURLNotHTTPS = errors.New("image URL must use HTTPS protocol")
+
+	// ErrImageFileNotFound is returned when an image file cannot be found.
+	ErrImageFileNotFound = errors.New("image file not found")
+
+	// ErrImageReadFailed is returned when an image file cannot be read.
+	ErrImageReadFailed = errors.New("failed to read image file")
+
+	// ErrImageURLInvalid is returned when an image URL is malformed.
+	ErrImageURLInvalid = errors.New("invalid image URL format")
+)
+
+// SupportedImageFormats contains the image formats supported by the Perplexity API.
+var SupportedImageFormats = []string{"png", "jpeg", "jpg", "webp", "gif"}
+
+// ImageProcessor handles image encoding and validation for the Perplexity API.
+type ImageProcessor struct{}
+
+// NewImageProcessor creates a new ImageProcessor instance.
+func NewImageProcessor() *ImageProcessor {
+	return &ImageProcessor{}
+}
+
+// EncodeImageFromFile reads an image file, validates it, and returns a base64 data URI.
+// The file path should point to a valid image file in one of the supported formats.
+// Returns a data URI in the format: "data:image/[format];base64,[encoded_data]".
+func (p *ImageProcessor) EncodeImageFromFile(filepath string) (string, error) {
+	// Check if file exists
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		return "", ErrImageFileNotFound
+	}
+
+	// Get file info for size validation
+	fileInfo, err := os.Stat(filepath)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrImageReadFailed, err)
+	}
+
+	// Validate file size
+	if err := p.ValidateImageSize(fileInfo.Size()); err != nil {
+		return "", err
+	}
+
+	// Validate file format based on extension
+	format := p.getImageFormatFromPath(filepath)
+	if err := p.ValidateImageFormat(format); err != nil {
+		return "", err
+	}
+
+	// Read file content
+	fileData, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrImageReadFailed, err)
+	}
+
+	// Encode to base64 and create data URI
+	base64Data := base64.StdEncoding.EncodeToString(fileData)
+	mimeType := p.getMimeType(format)
+	dataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
+
+	return dataURI, nil
+}
+
+// ValidateImageURL validates that a URL is HTTPS and has a valid format.
+// The URL must use HTTPS protocol to be accepted by the Perplexity API.
+func (p *ImageProcessor) ValidateImageURL(imageURL string) error {
+	if imageURL == "" {
+		return ErrImageURLInvalid
+	}
+
+	// Parse the URL
+	parsedURL, err := url.Parse(imageURL)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrImageURLInvalid, err)
+	}
+
+	// Validate HTTPS scheme
+	if parsedURL.Scheme != "https" {
+		return ErrImageURLNotHTTPS
+	}
+
+	// Validate host is present
+	if parsedURL.Host == "" {
+		return ErrImageURLInvalid
+	}
+
+	return nil
+}
+
+// ValidateImageFormat checks if the image format is supported by the Perplexity API.
+func (p *ImageProcessor) ValidateImageFormat(format string) error {
+	format = strings.ToLower(format)
+	for _, supported := range SupportedImageFormats {
+		if format == supported {
+			return nil
+		}
+	}
+	return ErrImageFormatNotSupported
+}
+
+// ValidateImageSize checks if the image size is within the 50MB limit.
+func (p *ImageProcessor) ValidateImageSize(size int64) error {
+	if size > MaxImageSizeBytes {
+		return ErrImageTooLarge
+	}
+	return nil
+}
+
+// CheckImageURLAccessibility performs a HEAD request to verify the image URL is accessible.
+// This is an optional validation that can be used to verify URLs before sending to the API.
+func (p *ImageProcessor) CheckImageURLAccessibility(imageURL string) error {
+	if err := p.ValidateImageURL(imageURL); err != nil {
+		return err
+	}
+
+	// Perform HEAD request to check if URL is accessible
+	resp, err := http.Head(imageURL)
+	if err != nil {
+		return fmt.Errorf("image URL not accessible: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check if response is successful
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("image URL returned status %d", resp.StatusCode)
+	}
+
+	// Optionally validate content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "" && !p.isValidImageContentType(contentType) {
+		return fmt.Errorf("invalid content type: %s", contentType)
+	}
+
+	return nil
+}
+
+// getImageFormatFromPath extracts the image format from a file path.
+func (p *ImageProcessor) getImageFormatFromPath(path string) string {
+	ext := filepath.Ext(path)
+	if ext != "" {
+		return strings.ToLower(ext[1:]) // Remove the dot and convert to lowercase
+	}
+	return ""
+}
+
+// getMimeType returns the MIME type for a given image format.
+func (p *ImageProcessor) getMimeType(format string) string {
+	switch strings.ToLower(format) {
+	case "png":
+		return "image/png"
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	case "webp":
+		return "image/webp"
+	case "gif":
+		return "image/gif"
+	default:
+		return "image/" + format
+	}
+}
+
+// isValidImageContentType checks if a content type corresponds to a supported image format.
+func (p *ImageProcessor) isValidImageContentType(contentType string) bool {
+	validTypes := []string{
+		"image/png",
+		"image/jpeg",
+		"image/webp",
+		"image/gif",
+	}
+
+	contentType = strings.ToLower(contentType)
+	for _, validType := range validTypes {
+		if strings.HasPrefix(contentType, validType) {
+			return true
+		}
+	}
+	return false
+}
+
+// EstimateTokenUsage estimates the token usage for an image based on its dimensions.
+// According to Perplexity documentation: tokens = (width px × height px) / 750
+// This function requires image dimensions to be provided separately.
+func (p *ImageProcessor) EstimateTokenUsage(width, height int) int {
+	if width <= 0 || height <= 0 {
+		return 0
+	}
+	return (width * height) / 750
+}

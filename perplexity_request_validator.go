@@ -74,6 +74,29 @@ var (
 	ErrReasoningEffortModelRequirement = errors.New("reasoning_effort is only available for the '" + ModelSonarDeepResearch + "' model")
 	// ErrSearchDomainInvalid is returned when search_domain is set to an invalid value.
 	ErrSearchDomainInvalid = errors.New("search_domain must be 'sec' or empty")
+
+	// Multimodal validation errors.
+
+	// ErrImageAndRegexIncompatible is returned when images are used with regex response format.
+	ErrImageAndRegexIncompatible = errors.New("images cannot be used with regex response format")
+
+	// ErrImageAndDeepResearchIncompatible is returned when images are used with sonar-deep-research model.
+	ErrImageAndDeepResearchIncompatible = errors.New("images cannot be used with sonar-deep-research model")
+
+	// ErrMultimodalAndRegularMessages is returned when both multimodal and regular messages are present.
+	ErrMultimodalAndRegularMessages = errors.New("cannot use both multimodal messages and regular messages")
+
+	// ErrMultimodalContentValidation is returned when multimodal content validation fails.
+	ErrMultimodalContentValidation = errors.New("multimodal content validation failed")
+
+	// ErrTextContentEmpty is returned when text content is empty.
+	ErrTextContentEmpty = errors.New("text content cannot be empty")
+
+	// ErrImageURLContentNil is returned when image URL content is nil.
+	ErrImageURLContentNil = errors.New("image URL content cannot be nil")
+
+	// ErrInvalidContentType is returned when content type is invalid.
+	ErrInvalidContentType = errors.New("invalid content type")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -110,6 +133,8 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 		v.validateImageFormatFilter,
 		v.validateDateFilters,
 		v.validateReasoningEffort,
+		v.validateMultimodalMessages,
+		v.validateImageCompatibility,
 	}
 
 	for _, validator := range validators {
@@ -345,6 +370,101 @@ func (v *RequestValidator) validateReasoningEffort(req *CompletionRequest) error
 	// If reasoning_effort is set, model must be sonar-deep-research
 	if req.Model != ModelSonarDeepResearch {
 		return ErrReasoningEffortModelRequirement
+	}
+
+	return nil
+}
+
+// validateMultimodalMessages validates multimodal message structure and content.
+func (v *RequestValidator) validateMultimodalMessages(req *CompletionRequest) error {
+	// Check that both multimodal and regular messages are not present
+	if len(req.MultimodalMessages) > 0 && len(req.Messages) > 0 {
+		return ErrMultimodalAndRegularMessages
+	}
+
+	// If no multimodal messages, skip validation
+	if len(req.MultimodalMessages) == 0 {
+		return nil
+	}
+
+	// Validate each multimodal message
+	for _, msg := range req.MultimodalMessages {
+		if err := v.validateMultimodalMessage(msg); err != nil {
+			return fmt.Errorf("%w: %w", ErrMultimodalContentValidation, err)
+		}
+	}
+
+	return nil
+}
+
+// validateMultimodalMessage validates a single multimodal message.
+func (v *RequestValidator) validateMultimodalMessage(msg MultimodalMessage) error {
+	// Validate struct tags
+	if err := v.validator.Struct(msg); err != nil {
+		return err
+	}
+
+	// Validate each content item
+	for _, content := range msg.Content {
+		if err := v.validateContent(content); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateContent validates a single content item.
+func (v *RequestValidator) validateContent(content Content) error {
+	// Validate struct tags
+	if err := v.validator.Struct(content); err != nil {
+		return err
+	}
+
+	// Validate specific content types
+	switch content.Type {
+	case ContentTypeText:
+		if content.Text == nil || *content.Text == "" {
+			return ErrTextContentEmpty
+		}
+	case ContentTypeImageURL:
+		if content.ImageURL == nil {
+			return ErrImageURLContentNil
+		}
+		// Validate image URL
+		processor := NewImageProcessor()
+		if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
+			return fmt.Errorf("invalid image URL: %w", err)
+		}
+	default:
+		return ErrInvalidContentType
+	}
+
+	return nil
+}
+
+// validateImageCompatibility checks image compatibility with other request options.
+func (v *RequestValidator) validateImageCompatibility(req *CompletionRequest) error {
+	hasImages := req.HasImages()
+
+	// Skip validation if no images
+	if !hasImages {
+		return nil
+	}
+
+	// Check regex incompatibility
+	if req.ResponseFormat != nil && req.ResponseFormat.Type == "regex" {
+		return ErrImageAndRegexIncompatible
+	}
+
+	// Check sonar-deep-research model incompatibility
+	if req.Model == ModelSonarDeepResearch {
+		return ErrImageAndDeepResearchIncompatible
+	}
+
+	// Check search recency filter incompatibility (from existing validation)
+	if req.SearchRecencyFilter != "" {
+		return ErrSearchRecencyFilter
 	}
 
 	return nil
