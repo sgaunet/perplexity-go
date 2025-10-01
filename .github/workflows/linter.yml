@@ -15,13 +15,13 @@ jobs:
         with:
           go-version: stable
       - name: Install task
-        uses: jaxxstorm/action-install-gh-release@v1.12.0
+        uses: jaxxstorm/action-install-gh-release@v2.1.0
         with:
           repo: go-task/task
           cache: enable
           # tag: 
       - name: Install golangci-lint
-        uses: jaxxstorm/action-install-gh-release@v1.12.0
+        uses: jaxxstorm/action-install-gh-release@v2.1.0
         with:
           repo: golangci/golangci-lint
           tag: v2.4.0
