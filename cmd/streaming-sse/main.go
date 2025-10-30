@@ -73,7 +73,7 @@ func main() {
 	for msg := range chResponses {
 		// Each message contains the accumulated response
 		fullResponse = msg
-		
+
 		// Display incremental content (only the new part)
 		currentContent := msg.GetLastContent()
 		if len(currentContent) > len(lastContent) {
@@ -81,7 +81,7 @@ func main() {
 			fmt.Print(newContent)
 			lastContent = currentContent
 		}
-		
+
 		tokenCount++
 	}
 

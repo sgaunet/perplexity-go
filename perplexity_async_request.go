@@ -61,16 +61,16 @@ type AsyncJobRequestOption func(*AsyncJobRequest)
 // DefaultAsyncJobRequest creates a new AsyncJobRequest with default values.
 func DefaultAsyncJobRequest() *AsyncJobRequest {
 	return &AsyncJobRequest{
-		Model:              ModelSonarDeepResearch, // Must be sonar-deep-research for async
-		MaxTokens:          DefaultMaxTokens,       // 4000
-		Temperature:        DefaultTemperature,     // 0.2
-		TopP:               DefaultTopP,            // 0.9
-		TopK:               DefaultTopK,            // 0
-		PresencePenalty:    DefaultPresencePenalty, // 0.0
+		Model:              ModelSonarDeepResearch,  // Must be sonar-deep-research for async
+		MaxTokens:          DefaultMaxTokens,        // 4000
+		Temperature:        DefaultTemperature,      // 0.2
+		TopP:               DefaultTopP,             // 0.9
+		TopK:               DefaultTopK,             // 0
+		PresencePenalty:    DefaultPresencePenalty,  // 0.0
 		FrequencyPenalty:   DefaultFrequencyPenalty, // 1.0
-		SearchMode:         DefaultSearchMode,      // "web"
-		SearchDomainFilter: nil,                    // null in JSON
-		Stream:             false,                  // async doesn't support streaming
+		SearchMode:         DefaultSearchMode,       // "web"
+		SearchDomainFilter: nil,                     // null in JSON
+		Stream:             false,                   // async doesn't support streaming
 	}
 }
 

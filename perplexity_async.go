@@ -274,7 +274,6 @@ func (r *AsyncJobResponse) UnmarshalJSON(data []byte) error {
 	return r.parseTimestampFields(raw)
 }
 
-
 // parseTimestamp parses a timestamp from interface{} (either Unix int or RFC3339 string).
 func parseTimestamp(value interface{}) (time.Time, error) {
 	switch v := value.(type) {

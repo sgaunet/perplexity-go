@@ -87,10 +87,10 @@ func main() {
 	// Configure custom polling options
 	opts := &perplexity.AsyncPollingOptions{
 		InitialInterval:   3 * time.Second,  // Start with 3-second intervals
-		MaxInterval:      30 * time.Second, // Cap at 30 seconds
-		BackoffMultiplier: 1.5,             // Gradual backoff
-		MaxWaitTime:      10 * time.Minute, // Total timeout
-		JitterEnabled:    true,             // Add randomness to avoid thundering herd
+		MaxInterval:       30 * time.Second, // Cap at 30 seconds
+		BackoffMultiplier: 1.5,              // Gradual backoff
+		MaxWaitTime:       10 * time.Minute, // Total timeout
+		JitterEnabled:     true,             // Add randomness to avoid thundering herd
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)

@@ -14,12 +14,12 @@ type SearchResponse struct {
 // SearchResultItem represents a single search result from the Search API.
 // This is distinct from SearchResult which is used in chat completion responses.
 type SearchResultItem struct {
-	Title   string              `json:"title"`
-	URL     string              `json:"url"`
-	Snippet *string             `json:"snippet,omitempty"`
-	Date    *string             `json:"date,omitempty"`
-	Score   *float64            `json:"score,omitempty"`
-	Images  *[]SearchImageItem  `json:"images,omitempty"`
+	Title   string             `json:"title"`
+	URL     string             `json:"url"`
+	Snippet *string            `json:"snippet,omitempty"`
+	Date    *string            `json:"date,omitempty"`
+	Score   *float64           `json:"score,omitempty"`
+	Images  *[]SearchImageItem `json:"images,omitempty"`
 }
 
 // SearchImageItem represents an image in a search result.

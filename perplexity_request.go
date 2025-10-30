@@ -188,61 +188,61 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 
 	// Create a temporary struct that replaces Messages with MultimodalMessages
 	type tempRequest struct {
-		Messages                 []MultimodalMessage `json:"messages"`
-		Model                    string              `json:"model"`
-		MaxTokens                int                 `json:"max_tokens,omitempty"`
-		Temperature              float64             `json:"temperature,omitempty"`
-		TopP                     float64             `json:"top_p,omitempty"`
-		SearchDomainFilter       []string            `json:"search_domain_filter,omitempty"`
-		ReturnImages             bool                `json:"return_images,omitempty"`
-		ReturnRelatedQuestions   bool                `json:"return_related_questions,omitempty"`
-		SearchRecencyFilter      string              `json:"search_recency_filter,omitempty"`
-		SearchMode               string              `json:"search_mode,omitempty"`
-		SearchDomain             string              `json:"search_domain,omitempty"`
-		TopK                     int                 `json:"top_k,omitempty"`
-		Stream                   bool                `json:"stream,omitempty"`
-		PresencePenalty          float64             `json:"presence_penalty,omitempty"`
-		FrequencyPenalty         float64             `json:"frequency_penalty,omitempty"`
-		ResponseFormat           *ResponseFormat     `json:"response_format,omitempty"`
-		ImageDomainFilter        []string            `json:"image_domain_filter,omitempty"`
-		ImageFormatFilter        []string            `json:"image_format_filter,omitempty"`
-		SearchAfterDateFilter    string              `json:"search_after_date_filter,omitempty"`
-		SearchBeforeDateFilter   string              `json:"search_before_date_filter,omitempty"`
-		LastUpdatedAfterFilter   string              `json:"last_updated_after_filter,omitempty"`
-		LastUpdatedBeforeFilter  string              `json:"last_updated_before_filter,omitempty"`
-		PublishedAfter           string              `json:"published_after,omitempty"`
-		PublishedBefore          string              `json:"published_before,omitempty"`
-		ReasoningEffort          string              `json:"reasoning_effort,omitempty"`
-		WebSearchOptions         *WebSearchOptions   `json:"web_search_options,omitempty"`
+		Messages                []MultimodalMessage `json:"messages"`
+		Model                   string              `json:"model"`
+		MaxTokens               int                 `json:"max_tokens,omitempty"`
+		Temperature             float64             `json:"temperature,omitempty"`
+		TopP                    float64             `json:"top_p,omitempty"`
+		SearchDomainFilter      []string            `json:"search_domain_filter,omitempty"`
+		ReturnImages            bool                `json:"return_images,omitempty"`
+		ReturnRelatedQuestions  bool                `json:"return_related_questions,omitempty"`
+		SearchRecencyFilter     string              `json:"search_recency_filter,omitempty"`
+		SearchMode              string              `json:"search_mode,omitempty"`
+		SearchDomain            string              `json:"search_domain,omitempty"`
+		TopK                    int                 `json:"top_k,omitempty"`
+		Stream                  bool                `json:"stream,omitempty"`
+		PresencePenalty         float64             `json:"presence_penalty,omitempty"`
+		FrequencyPenalty        float64             `json:"frequency_penalty,omitempty"`
+		ResponseFormat          *ResponseFormat     `json:"response_format,omitempty"`
+		ImageDomainFilter       []string            `json:"image_domain_filter,omitempty"`
+		ImageFormatFilter       []string            `json:"image_format_filter,omitempty"`
+		SearchAfterDateFilter   string              `json:"search_after_date_filter,omitempty"`
+		SearchBeforeDateFilter  string              `json:"search_before_date_filter,omitempty"`
+		LastUpdatedAfterFilter  string              `json:"last_updated_after_filter,omitempty"`
+		LastUpdatedBeforeFilter string              `json:"last_updated_before_filter,omitempty"`
+		PublishedAfter          string              `json:"published_after,omitempty"`
+		PublishedBefore         string              `json:"published_before,omitempty"`
+		ReasoningEffort         string              `json:"reasoning_effort,omitempty"`
+		WebSearchOptions        *WebSearchOptions   `json:"web_search_options,omitempty"`
 	}
 
 	temp := tempRequest{
-		Messages:                 r.MultimodalMessages,
-		Model:                    r.Model,
-		MaxTokens:                r.MaxTokens,
-		Temperature:              r.Temperature,
-		TopP:                     r.TopP,
-		SearchDomainFilter:       r.SearchDomainFilter,
-		ReturnImages:             r.ReturnImages,
-		ReturnRelatedQuestions:   r.ReturnRelatedQuestions,
-		SearchRecencyFilter:      r.SearchRecencyFilter,
-		SearchMode:               r.SearchMode,
-		SearchDomain:             r.SearchDomain,
-		TopK:                     r.TopK,
-		Stream:                   r.Stream,
-		PresencePenalty:          r.PresencePenalty,
-		FrequencyPenalty:         r.FrequencyPenalty,
-		ResponseFormat:           r.ResponseFormat,
-		ImageDomainFilter:        r.ImageDomainFilter,
-		ImageFormatFilter:        r.ImageFormatFilter,
-		SearchAfterDateFilter:    r.SearchAfterDateFilter,
-		SearchBeforeDateFilter:   r.SearchBeforeDateFilter,
-		LastUpdatedAfterFilter:   r.LastUpdatedAfterFilter,
-		LastUpdatedBeforeFilter:  r.LastUpdatedBeforeFilter,
-		PublishedAfter:           r.PublishedAfter,
-		PublishedBefore:          r.PublishedBefore,
-		ReasoningEffort:          r.ReasoningEffort,
-		WebSearchOptions:         r.WebSearchOptions,
+		Messages:                r.MultimodalMessages,
+		Model:                   r.Model,
+		MaxTokens:               r.MaxTokens,
+		Temperature:             r.Temperature,
+		TopP:                    r.TopP,
+		SearchDomainFilter:      r.SearchDomainFilter,
+		ReturnImages:            r.ReturnImages,
+		ReturnRelatedQuestions:  r.ReturnRelatedQuestions,
+		SearchRecencyFilter:     r.SearchRecencyFilter,
+		SearchMode:              r.SearchMode,
+		SearchDomain:            r.SearchDomain,
+		TopK:                    r.TopK,
+		Stream:                  r.Stream,
+		PresencePenalty:         r.PresencePenalty,
+		FrequencyPenalty:        r.FrequencyPenalty,
+		ResponseFormat:          r.ResponseFormat,
+		ImageDomainFilter:       r.ImageDomainFilter,
+		ImageFormatFilter:       r.ImageFormatFilter,
+		SearchAfterDateFilter:   r.SearchAfterDateFilter,
+		SearchBeforeDateFilter:  r.SearchBeforeDateFilter,
+		LastUpdatedAfterFilter:  r.LastUpdatedAfterFilter,
+		LastUpdatedBeforeFilter: r.LastUpdatedBeforeFilter,
+		PublishedAfter:          r.PublishedAfter,
+		PublishedBefore:         r.PublishedBefore,
+		ReasoningEffort:         r.ReasoningEffort,
+		WebSearchOptions:        r.WebSearchOptions,
 	}
 
 	data, err := json.Marshal(temp)
@@ -596,6 +596,7 @@ func WithImageFormatFilter(formats []string) CompletionRequestOption {
 // Filters search results to include content published after the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
 // Deprecated: Use WithPublishedAfter instead for API compliance.
+//
 //go:deprecated
 func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
@@ -607,6 +608,7 @@ func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
 // Filters search results to include content published before the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
 // Deprecated: Use WithPublishedBefore instead for API compliance.
+//
 //go:deprecated
 func WithSearchBeforeDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
@@ -699,4 +701,3 @@ func WithImageFromURL(_ string) CompletionRequestOption {
 		// multimodal messages using the Messages object or Content helpers
 	}
 }
-

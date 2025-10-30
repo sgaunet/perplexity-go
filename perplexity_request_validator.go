@@ -94,7 +94,6 @@ var (
 
 	// ErrImageURLContentNil is returned when image URL content is nil.
 	ErrImageURLContentNil = errors.New("image URL content cannot be nil")
-
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.

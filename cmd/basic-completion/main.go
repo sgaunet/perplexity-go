@@ -37,7 +37,7 @@ func main() {
 	req := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(msg),
 		perplexity.WithWebSearchOptions(webSearchOpts),
-		perplexity.WithSearchMode("web"), // Use "web" or "academic" mode
+		perplexity.WithSearchMode("web"),            // Use "web" or "academic" mode
 		perplexity.WithReturnRelatedQuestions(true), // Enable related questions
 	)
 
