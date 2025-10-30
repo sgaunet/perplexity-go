@@ -318,3 +318,323 @@ func TestNewSearchRequestValidator(t *testing.T) {
 	require.NotNil(t, validator)
 	require.NotNil(t, validator.validator)
 }
+
+// TestQueryEdgeCases tests special characters, unicode, and very long strings in queries.
+func TestQueryEdgeCases(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("query with special characters", func(t *testing.T) {
+		specialChars := []string{
+			"test! query?",
+			"email@example.com",
+			"price $100",
+			"c++ programming",
+			"50% discount",
+			"#hashtag search",
+			"query with (parentheses)",
+			"query with [brackets]",
+			"query with {braces}",
+			"path/to/file",
+			"a&b|c",
+		}
+		for _, query := range specialChars {
+			req := NewSearchRequest(query)
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "query %q should be valid", query)
+		}
+	})
+
+	t.Run("query with unicode characters", func(t *testing.T) {
+		unicodeQueries := []string{
+			"你好世界",                 // Chinese
+			"こんにちは",                // Japanese
+			"안녕하세요",                // Korean
+			"مرحبا",                // Arabic
+			"привет",               // Russian
+			"emoji test 😀 🎉 🚀",     // Emojis
+			"math symbols ∫∑∏√",    // Math symbols
+			"mixed 中文 and English", // Mixed
+		}
+		for _, query := range unicodeQueries {
+			req := NewSearchRequest(query)
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "unicode query %q should be valid", query)
+		}
+	})
+
+	t.Run("very long query string", func(t *testing.T) {
+		// Test with 1000 character query
+		longQuery := ""
+		for i := 0; i < 100; i++ {
+			longQuery += "test query "
+		}
+		req := NewSearchRequest(longQuery)
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err, "very long query should be valid")
+	})
+
+	t.Run("query with only whitespace", func(t *testing.T) {
+		whitespaceQueries := []string{
+			" ",
+			"   ",
+			"\t",
+			"\n",
+			"  \t  \n  ",
+		}
+		for _, query := range whitespaceQueries {
+			req := NewSearchRequest(query)
+			err := validator.ValidateSearchRequest(req)
+			// Whitespace-only queries are currently allowed by the validator
+			// since it only checks for empty string, not trimmed empty string
+			assert.NoError(t, err, "whitespace query %q is currently allowed", query)
+		}
+	})
+
+	t.Run("query with escape sequences", func(t *testing.T) {
+		escapeQueries := []string{
+			`query with "quotes"`,
+			`query with 'single quotes'`,
+			"query with\ttab",
+			"query with\nnewline",
+			`query with \\ backslash`,
+		}
+		for _, query := range escapeQueries {
+			req := NewSearchRequest(query)
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "query with escape sequences %q should be valid", query)
+		}
+	})
+}
+
+// TestLargeQueryArrays tests validation with large arrays of queries.
+func TestLargeQueryArrays(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("array with 10 queries", func(t *testing.T) {
+		queries := make([]string, 10)
+		for i := 0; i < 10; i++ {
+			queries[i] = "query " + string(rune('A'+i))
+		}
+		req := NewSearchRequest(queries)
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("array with 50 queries", func(t *testing.T) {
+		queries := make([]string, 50)
+		for i := 0; i < 50; i++ {
+			queries[i] = "test query number " + string(rune('0'+i%10))
+		}
+		req := NewSearchRequest(queries)
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("array with 100 queries", func(t *testing.T) {
+		queries := make([]string, 100)
+		for i := 0; i < 100; i++ {
+			queries[i] = "query item"
+		}
+		req := NewSearchRequest(queries)
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("large array with one empty element", func(t *testing.T) {
+		queries := make([]string, 20)
+		for i := 0; i < 20; i++ {
+			if i == 10 {
+				queries[i] = "" // Empty element at index 10
+			} else {
+				queries[i] = "valid query"
+			}
+		}
+		req := NewSearchRequest(queries)
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "index 10")
+	})
+
+	t.Run("large array with mixed unicode and ascii", func(t *testing.T) {
+		queries := []string{
+			"english query",
+			"中文查询",
+			"日本語クエリ",
+			"한국어 쿼리",
+			"запрос на русском",
+			"consulta en español",
+			"requête en français",
+			"deutsche Abfrage",
+			"consulta em português",
+			"ricerca in italiano",
+			"query with emoji 🔍",
+			"mixed 中英文 query",
+		}
+		req := NewSearchRequest(queries)
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+}
+
+// TestDomainFilterEdgeCases tests complex domain patterns and edge cases.
+func TestDomainFilterEdgeCases(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("domains with multiple wildcards", func(t *testing.T) {
+		domains := []string{
+			"*.example.*",
+			"*.*",
+			"*.*.example.com",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err, "domains with multiple wildcards should be valid")
+	})
+
+	t.Run("domains with hyphens in various positions", func(t *testing.T) {
+		domains := []string{
+			"my-domain.com",
+			"test-site-name.org",
+			"a-b-c-d.net",
+			"site-123.com",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("domains with numbers", func(t *testing.T) {
+		domains := []string{
+			"site123.com",
+			"123site.org",
+			"test456.net",
+			"my3site4.edu",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("subdomain patterns", func(t *testing.T) {
+		domains := []string{
+			"*.example.com",
+			"*.subdomain.example.org",
+			"api.*.example.com",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("domains with special TLDs", func(t *testing.T) {
+		domains := []string{
+			"example.co.uk",
+			"site.gov.au",
+			"test.ac.jp",
+			"example.com.br",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("domains with special characters are allowed when they contain dots", func(t *testing.T) {
+		// Note: The validator is intentionally permissive for domain filters.
+		// Domains with dots are considered valid even with special characters,
+		// as the API may support various glob patterns. The API will perform
+		// final validation.
+		domains := []string{
+			"example!.com",
+			"test@site.org",
+			"my#domain.net",
+			"site$.com",
+			"test%.org",
+			"example .com", // even with space, if it has a dot
+		}
+		for _, domain := range domains {
+			req := NewSearchRequest("test", WithSearchDomains([]string{domain}))
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "domain %s is allowed (contains dot)", domain)
+		}
+	})
+
+	t.Run("domains without dots must match pattern", func(t *testing.T) {
+		// Domains without dots must match the valid pattern regex
+		invalidDomains := []string{
+			"invalid!domain",
+			"test@site",
+			"my#domain",
+			"site$name",
+			"test%value",
+			"domain with space",
+		}
+		for _, domain := range invalidDomains {
+			req := NewSearchRequest("test", WithSearchDomains([]string{domain}))
+			err := validator.ValidateSearchRequest(req)
+			assert.Error(t, err, "domain without dot and with special chars %s should be invalid", domain)
+		}
+	})
+
+	t.Run("large domain filter list", func(t *testing.T) {
+		domains := make([]string, 50)
+		for i := 0; i < 50; i++ {
+			domains[i] = "example" + string(rune('a'+i%26)) + ".com"
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("single character domain components", func(t *testing.T) {
+		domains := []string{
+			"a.b.c.com",
+			"x.y.z",
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+}
+
+// TestMaxResultsBoundaries tests boundary values for max_results.
+func TestMaxResultsBoundaries(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("max_results with value 1", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(1))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("max_results with large positive value", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(1000))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("max_results with very large positive value", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(999999))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("max_results with maximum int value", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(2147483647)) // max int32
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("max_results with -1", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(-1))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+
+	t.Run("max_results with large negative value", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(-9999))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+}
