@@ -54,10 +54,10 @@ func TestImageProcessor(t *testing.T) {
 
 	t.Run("ValidateImageURL with invalid URLs", func(t *testing.T) {
 		invalidURLs := []string{
-			"http://example.com/image.jpg",  // HTTP not HTTPS
-			"ftp://example.com/image.jpg",   // Wrong protocol
-			"not-a-url",                     // Not a URL
-			"",                              // Empty
+			"http://example.com/image.jpg", // HTTP not HTTPS
+			"ftp://example.com/image.jpg",  // Wrong protocol
+			"not-a-url",                    // Not a URL
+			"",                             // Empty
 		}
 		for _, url := range invalidURLs {
 			err := processor.ValidateImageURL(url)

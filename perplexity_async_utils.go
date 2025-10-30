@@ -24,7 +24,6 @@ const (
 	JitterOffset = 0.5
 )
 
-
 // AsyncPollingOptions configures the polling behavior for async jobs.
 type AsyncPollingOptions struct {
 	// InitialInterval is the initial polling interval.

@@ -25,7 +25,7 @@ func main() {
 	// Create a request with image return enabled
 	req := perplexity.NewCompletionRequest(
 		perplexity.WithMessages(msg),
-		perplexity.WithReturnImages(true),        // Enable image returns
+		perplexity.WithReturnImages(true),      // Enable image returns
 		perplexity.WithSearchRecencyFilter(""), // Clear default recency filter (incompatible with images)
 	)
 

@@ -81,10 +81,10 @@ type Message struct {
 
 // Messages is an object that contains a list of messages for the Perplexity API.
 type Messages struct {
-	systemMessage       string
-	messages            []Message            // A list of messages comprising the conversation so far.
-	multimodalMessages  []MultimodalMessage  // A list of multimodal messages (when using images).
-	useMultimodal       bool                 // Flag to indicate if multimodal messages are being used.
+	systemMessage      string
+	messages           []Message           // A list of messages comprising the conversation so far.
+	multimodalMessages []MultimodalMessage // A list of multimodal messages (when using images).
+	useMultimodal      bool                // Flag to indicate if multimodal messages are being used.
 }
 
 // NewMessages returns a new Messages object.

@@ -21,6 +21,9 @@ const DefaultEndpoint = "https://api.perplexity.ai/chat/completions"
 // AsyncJobEndpoint is the base endpoint for async operations.
 const AsyncJobEndpoint = "https://api.perplexity.ai/async/chat/completions"
 
+// SearchEndpoint is the endpoint for the Perplexity Search API.
+const SearchEndpoint = "https://api.perplexity.ai/search"
+
 // DefaultTimeout is the default timeout for the HTTP client.
 const DefaultTimeout = 30 * time.Second
 
@@ -44,10 +47,11 @@ var (
 
 // Client is a client for the Perplexity API.
 type Client struct {
-	endpoint      string
-	asyncEndpoint string
-	apiKey        string
-	httpClient    *http.Client
+	endpoint       string
+	asyncEndpoint  string
+	searchEndpoint string
+	apiKey         string
+	httpClient     *http.Client
 }
 
 // NewClient creates a new Perplexity API client.
@@ -55,9 +59,10 @@ type Client struct {
 // The default model is llama-3-sonar-small-32k-online.
 func NewClient(apiKey string) *Client {
 	s := &Client{
-		apiKey:        apiKey,
-		endpoint:      DefaultEndpoint,
-		asyncEndpoint: AsyncJobEndpoint,
+		apiKey:         apiKey,
+		endpoint:       DefaultEndpoint,
+		asyncEndpoint:  AsyncJobEndpoint,
+		searchEndpoint: SearchEndpoint,
 		httpClient: &http.Client{
 			Timeout: DefaultTimeout,
 		},
@@ -73,6 +78,11 @@ func (s *Client) SetEndpoint(endpoint string) {
 // SetAsyncEndpoint sets the async API endpoint.
 func (s *Client) SetAsyncEndpoint(endpoint string) {
 	s.asyncEndpoint = endpoint
+}
+
+// SetSearchEndpoint sets the Search API endpoint.
+func (s *Client) SetSearchEndpoint(endpoint string) {
+	s.searchEndpoint = endpoint
 }
 
 // SetHTTPClient sets the HTTP client.
@@ -379,6 +389,63 @@ func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int
 	}
 
 	var result AsyncJobListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// SendSearchRequest sends a search request to the Perplexity Search API.
+// The Search API provides direct access to Perplexity's real-time web index
+// without the generative LLM layer, returning raw ranked search results.
+func (s *Client) SendSearchRequest(req *SearchRequest) (*SearchResponse, error) {
+	return s.SendSearchRequestWithContext(context.Background(), req)
+}
+
+// SendSearchRequestWithContext sends a search request to the Perplexity Search API with the given context.
+func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRequest) (*SearchResponse, error) {
+	if req == nil {
+		return nil, ErrNilRequest
+	}
+
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.searchEndpoint, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result SearchResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
 	}
