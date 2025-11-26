@@ -20,7 +20,7 @@ tasks:
       - go tool cover -func profile.cov | grep '^total:' | awk '{print $3}' | sed "s/%//"
       - rm -f profile.cov
 
-  linter:
+  lint:
     desc: "Run linter"
     cmds:
       - go generate ./...
