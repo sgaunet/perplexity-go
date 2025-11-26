@@ -31,4 +31,4 @@ jobs:
       - name: Run linter
         shell: /usr/bin/bash {0}
         run: |
-          task linter
+          task lint
