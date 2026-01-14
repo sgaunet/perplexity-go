@@ -136,6 +136,23 @@ func TestSearchRequestMarshal(t *testing.T) {
 		assert.Equal(t, float64(750), result["max_tokens"])
 	})
 
+	t.Run("with language_preference", func(t *testing.T) {
+		req := NewSearchRequest(
+			"search query",
+			WithSearchLanguagePreference("es"),
+		)
+
+		data, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		var result map[string]interface{}
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "search query", result["query"])
+		assert.Equal(t, "es", result["language_preference"])
+	})
+
 	t.Run("minimal request", func(t *testing.T) {
 		req := NewSearchRequest("simple query")
 
@@ -214,6 +231,11 @@ func TestSearchRequestOptions(t *testing.T) {
 	t.Run("WithSearchCountry", func(t *testing.T) {
 		req := NewSearchRequest("test", WithSearchCountry("GB"))
 		assert.Equal(t, "GB", *req.Country)
+	})
+
+	t.Run("WithSearchLanguagePreference", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("fr"))
+		assert.Equal(t, "fr", *req.LanguagePreference)
 	})
 
 	t.Run("WithSearchDomains", func(t *testing.T) {

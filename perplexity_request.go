@@ -162,6 +162,10 @@ type CompletionRequest struct {
 	// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses)
 	// Only applicable for sonar-deep-research model.
 	ReasoningEffort string `json:"reasoning_effort,omitempty" validate:"omitempty,oneof=low medium high"`
+
+	// LanguagePreference: Optional. Specify preferred language for search results and responses.
+	// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+	LanguagePreference string `json:"language_preference,omitempty" validate:"omitempty,min=2,max=5"`
 }
 
 // NewCompletionRequest creates a new completion request.
@@ -213,6 +217,7 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 		PublishedAfter          string              `json:"published_after,omitempty"`
 		PublishedBefore         string              `json:"published_before,omitempty"`
 		ReasoningEffort         string              `json:"reasoning_effort,omitempty"`
+		LanguagePreference      string              `json:"language_preference,omitempty"`
 		WebSearchOptions        *WebSearchOptions   `json:"web_search_options,omitempty"`
 	}
 
@@ -242,6 +247,7 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 		PublishedAfter:          r.PublishedAfter,
 		PublishedBefore:         r.PublishedBefore,
 		ReasoningEffort:         r.ReasoningEffort,
+		LanguagePreference:      r.LanguagePreference,
 		WebSearchOptions:        r.WebSearchOptions,
 	}
 
@@ -699,5 +705,13 @@ func WithImageFromURL(_ string) CompletionRequestOption {
 	return func(_ *CompletionRequest) {
 		// This is a utility function - in practice, users should build
 		// multimodal messages using the Messages object or Content helpers
+	}
+}
+
+// WithLanguagePreference sets the preferred language for search results and responses.
+// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+func WithLanguagePreference(lang string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.LanguagePreference = lang
 	}
 }

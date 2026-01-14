@@ -10,6 +10,7 @@ type SearchRequest struct {
 	ReturnImages       *bool       `json:"return_images,omitempty"`
 	ReturnSnippets     *bool       `json:"return_snippets,omitempty"`
 	Country            *string     `json:"country,omitempty"`
+	LanguagePreference *string     `json:"language_preference,omitempty"`
 	SearchDomainFilter *[]string   `json:"search_domain_filter,omitempty"`
 }
 
@@ -60,6 +61,14 @@ func WithSearchReturnSnippets(include bool) SearchRequestOption {
 func WithSearchCountry(country string) SearchRequestOption {
 	return func(r *SearchRequest) {
 		r.Country = &country
+	}
+}
+
+// WithSearchLanguagePreference sets the preferred language for search results.
+// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+func WithSearchLanguagePreference(lang string) SearchRequestOption {
+	return func(r *SearchRequest) {
+		r.LanguagePreference = &lang
 	}
 }
 

@@ -17,6 +17,7 @@ var (
 	ErrSearchMaxResultsInvalid        = errors.New("max_results must be a positive integer")
 	ErrSearchMaxTokensInvalid         = errors.New("max_tokens must be a positive integer")
 	ErrSearchCountryInvalid           = errors.New("country must be a valid ISO 3166-1 alpha-2 code (2 uppercase letters)")
+	ErrSearchLanguagePreferenceInvalid = errors.New("language_preference must be valid ISO 639 format (e.g., 'en', 'en-US')")
 	ErrSearchDomainFilterEntryEmpty   = errors.New("domain filter entry cannot be empty")
 	ErrSearchDomainFilterEntryInvalid = errors.New("domain filter entry is not a valid domain or pattern")
 	ErrSearchQueryArrayElementEmpty   = errors.New("query array element cannot be empty")
@@ -58,6 +59,13 @@ func (v *SearchRequestValidator) ValidateSearchRequest(req *SearchRequest) error
 	// Validate country if provided
 	if req.Country != nil && *req.Country != "" {
 		if err := v.validateCountry(*req.Country); err != nil {
+			return err
+		}
+	}
+
+	// Validate language_preference if provided
+	if req.LanguagePreference != nil && *req.LanguagePreference != "" {
+		if err := v.validateLanguagePreference(*req.LanguagePreference); err != nil {
 			return err
 		}
 	}
@@ -141,4 +149,24 @@ func isValidDomainPattern(s string) bool {
 	// Allow patterns like *.example.com, example.*, etc.
 	matched, _ := regexp.MatchString(`^[\w\*\-\.]+$`, s)
 	return matched
+}
+
+// validateLanguagePreference validates language preference format.
+func (v *SearchRequestValidator) validateLanguagePreference(lang string) error {
+	// Check length (ISO 639-1 codes are 2 characters, with optional country code up to 5 total)
+	if len(lang) < 2 || len(lang) > 5 {
+		return fmt.Errorf("%w: length must be 2-5 characters, got: %s", ErrSearchLanguagePreferenceInvalid, lang)
+	}
+
+	// Validate format: lowercase language code, optional uppercase country code with hyphen
+	// Examples: "en", "fr", "en-US", "fr-CA"
+	matched, err := regexp.MatchString(`^[a-z]{2}(-[A-Z]{2})?$`, lang)
+	if err != nil {
+		return fmt.Errorf("failed to validate language preference: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("%w, got: %s", ErrSearchLanguagePreferenceInvalid, lang)
+	}
+
+	return nil
 }

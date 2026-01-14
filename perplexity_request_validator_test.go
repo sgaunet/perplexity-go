@@ -958,3 +958,79 @@ func TestValidateReasoningEffort(t *testing.T) {
 		assert.Contains(t, err.Error(), "Key: 'CompletionRequest.ReasoningEffort'")
 	})
 }
+
+func TestRequestValidator_ValidateLanguagePreference(t *testing.T) {
+	validator := perplexity.NewRequestValidator()
+
+	t.Run("accepts valid ISO 639-1 codes", func(t *testing.T) {
+		validCodes := []string{"en", "fr", "es", "de", "ja", "zh"}
+		for _, code := range validCodes {
+			req := perplexity.NewCompletionRequest(
+				perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+				perplexity.WithLanguagePreference(code),
+			)
+			err := validator.ValidateRequest(req)
+			assert.NoError(t, err, "language code %s should be valid", code)
+		}
+	})
+
+	t.Run("accepts valid extended format with country", func(t *testing.T) {
+		validCodes := []string{"en-US", "en-GB", "fr-CA", "es-MX", "pt-BR"}
+		for _, code := range validCodes {
+			req := perplexity.NewCompletionRequest(
+				perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+				perplexity.WithLanguagePreference(code),
+			)
+			err := validator.ValidateRequest(req)
+			assert.NoError(t, err, "language code %s should be valid", code)
+		}
+	})
+
+	t.Run("returns error for uppercase language code", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithLanguagePreference("EN"),
+		)
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ISO 639")
+	})
+
+	t.Run("returns error for lowercase country code", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithLanguagePreference("en-us"),
+		)
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ISO 639")
+	})
+
+	t.Run("returns error for too short code", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithLanguagePreference("e"),
+		)
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "LanguagePreference")
+	})
+
+	t.Run("returns error for too long code", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+			perplexity.WithLanguagePreference("en-USA"),
+		)
+		err := validator.ValidateRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "LanguagePreference")
+	})
+
+	t.Run("accepts empty language preference", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(
+			perplexity.WithMessages([]perplexity.Message{{Role: "user", Content: "test"}}),
+		)
+		err := validator.ValidateRequest(req)
+		assert.NoError(t, err)
+	})
+}
