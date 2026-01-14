@@ -15,6 +15,7 @@ var (
 	ErrSearchQueryArrayEmpty          = errors.New("query array cannot be empty")
 	ErrSearchQueryInvalidType         = errors.New("query must be a string or array of strings")
 	ErrSearchMaxResultsInvalid        = errors.New("max_results must be a positive integer")
+	ErrSearchMaxTokensInvalid         = errors.New("max_tokens must be a positive integer")
 	ErrSearchCountryInvalid           = errors.New("country must be a valid ISO 3166-1 alpha-2 code (2 uppercase letters)")
 	ErrSearchDomainFilterEntryEmpty   = errors.New("domain filter entry cannot be empty")
 	ErrSearchDomainFilterEntryInvalid = errors.New("domain filter entry is not a valid domain or pattern")
@@ -47,6 +48,11 @@ func (v *SearchRequestValidator) ValidateSearchRequest(req *SearchRequest) error
 	// Validate max_results if provided
 	if req.MaxResults != nil && *req.MaxResults <= 0 {
 		return ErrSearchMaxResultsInvalid
+	}
+
+	// Validate max_tokens if provided
+	if req.MaxTokens != nil && *req.MaxTokens <= 0 {
+		return ErrSearchMaxTokensInvalid
 	}
 
 	// Validate country if provided

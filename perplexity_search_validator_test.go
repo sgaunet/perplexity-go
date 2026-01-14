@@ -87,6 +87,36 @@ func TestSearchRequestValidator_ValidateMaxResults(t *testing.T) {
 	})
 }
 
+func TestSearchRequestValidator_ValidateMaxTokens(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("valid max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(500))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("zero max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(0))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+
+	t.Run("negative max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(-10))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+
+	t.Run("nil max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test")
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+}
+
 func TestSearchRequestValidator_ValidateCountry(t *testing.T) {
 	validator := NewSearchRequestValidator()
 

@@ -6,6 +6,7 @@ package perplexity
 type SearchRequest struct {
 	Query              interface{} `json:"query" validate:"required"` // string or []string
 	MaxResults         *int        `json:"max_results,omitempty"`
+	MaxTokens          *int        `json:"max_tokens,omitempty"`
 	ReturnImages       *bool       `json:"return_images,omitempty"`
 	ReturnSnippets     *bool       `json:"return_snippets,omitempty"`
 	Country            *string     `json:"country,omitempty"`
@@ -31,6 +32,13 @@ func NewSearchRequest(query interface{}, opts ...SearchRequestOption) *SearchReq
 func WithSearchMaxResults(maxResults int) SearchRequestOption {
 	return func(r *SearchRequest) {
 		r.MaxResults = &maxResults
+	}
+}
+
+// WithSearchMaxTokens sets the maximum tokens extracted per page in search results.
+func WithSearchMaxTokens(maxTokens int) SearchRequestOption {
+	return func(r *SearchRequest) {
+		r.MaxTokens = &maxTokens
 	}
 }
 
