@@ -224,10 +224,8 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 			continue
 		}
 
-		// Check if this is a data line
-		if bytes.HasPrefix(line, []byte("data: ")) { //nolint:nestif
-			// Remove the "data: " prefix
-			data := bytes.TrimPrefix(line, []byte("data: "))
+		// Check if this is a data line and remove the "data: " prefix
+		if data, found := bytes.CutPrefix(line, []byte("data: ")); found { //nolint:nestif
 			data = bytes.TrimSpace(data)
 
 			// Check for [DONE] message

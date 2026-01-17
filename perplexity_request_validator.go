@@ -94,6 +94,12 @@ var (
 
 	// ErrImageURLContentNil is returned when image URL content is nil.
 	ErrImageURLContentNil = errors.New("image URL content cannot be nil")
+
+	// ErrFileURLContentNil is returned when file URL content is nil.
+	ErrFileURLContentNil = errors.New("file URL content cannot be nil")
+
+	// ErrLanguagePreferenceInvalid is returned when language preference format is invalid.
+	ErrLanguagePreferenceInvalid = errors.New("language_preference must be valid ISO 639 format (e.g., 'en', 'en-US')")
 )
 
 // RequestValidator provides validation functionality for CompletionRequest.
@@ -130,6 +136,7 @@ func (v *RequestValidator) ValidateRequest(req *CompletionRequest) error {
 		v.validateImageFormatFilter,
 		v.validateDateFilters,
 		v.validateReasoningEffort,
+		v.validateLanguagePreference,
 		v.validateMultimodalMessages,
 		v.validateImageCompatibility,
 	}
@@ -372,6 +379,30 @@ func (v *RequestValidator) validateReasoningEffort(req *CompletionRequest) error
 	return nil
 }
 
+// validateLanguagePreference validates language preference format.
+func (v *RequestValidator) validateLanguagePreference(req *CompletionRequest) error {
+	if req.LanguagePreference == "" {
+		return nil
+	}
+
+	// Check length (ISO 639-1 codes are 2 characters, with optional country code up to 5 total)
+	if len(req.LanguagePreference) < 2 || len(req.LanguagePreference) > 5 {
+		return fmt.Errorf("%w: length must be 2-5 characters, got: %s", ErrLanguagePreferenceInvalid, req.LanguagePreference)
+	}
+
+	// Validate format: lowercase language code, optional uppercase country code with hyphen
+	// Examples: "en", "fr", "en-US", "fr-CA"
+	matched, err := regexp.MatchString(`^[a-z]{2}(-[A-Z]{2})?$`, req.LanguagePreference)
+	if err != nil {
+		return fmt.Errorf("failed to validate language preference: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("%w, got: %s", ErrLanguagePreferenceInvalid, req.LanguagePreference)
+	}
+
+	return nil
+}
+
 // validateMultimodalMessages validates multimodal message structure and content.
 func (v *RequestValidator) validateMultimodalMessages(req *CompletionRequest) error {
 	// Check that both multimodal and regular messages are not present
@@ -421,22 +452,45 @@ func (v *RequestValidator) validateContent(content Content) error {
 	// Validate specific content types
 	switch content.Type {
 	case ContentTypeText:
-		if content.Text == nil || *content.Text == "" {
-			return ErrTextContentEmpty
-		}
+		return v.validateTextContent(content)
 	case ContentTypeImageURL:
-		if content.ImageURL == nil {
-			return ErrImageURLContentNil
-		}
-		// Validate image URL
-		processor := NewImageProcessor()
-		if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
-			return fmt.Errorf("invalid image URL: %w", err)
-		}
+		return v.validateImageURLContent(content)
+	case ContentTypeFileURL:
+		return v.validateFileURLContent(content)
 	default:
 		return ErrInvalidContentType
 	}
+}
 
+// validateTextContent validates text content.
+func (v *RequestValidator) validateTextContent(content Content) error {
+	if content.Text == nil || *content.Text == "" {
+		return ErrTextContentEmpty
+	}
+	return nil
+}
+
+// validateImageURLContent validates image URL content.
+func (v *RequestValidator) validateImageURLContent(content Content) error {
+	if content.ImageURL == nil {
+		return ErrImageURLContentNil
+	}
+	processor := NewImageProcessor()
+	if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
+		return fmt.Errorf("invalid image URL: %w", err)
+	}
+	return nil
+}
+
+// validateFileURLContent validates file URL content.
+func (v *RequestValidator) validateFileURLContent(content Content) error {
+	if content.FileURL == nil {
+		return ErrFileURLContentNil
+	}
+	processor := NewFileProcessor()
+	if err := processor.ValidateFileURL(content.FileURL.URL); err != nil {
+		return fmt.Errorf("invalid file URL: %w", err)
+	}
 	return nil
 }
 

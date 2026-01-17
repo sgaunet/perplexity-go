@@ -45,7 +45,7 @@ const (
 // CompletionRequest is a request object for the Perplexity API.
 // https://docs.perplexity.ai/api-reference/chat-completions
 type CompletionRequest struct {
-	Messages []Message `json:"messages" validate:"required,dive"`
+	Messages []Message `json:"messages" validate:"required_without=MultimodalMessages,dive"`
 	// MultimodalMessages: Optional. Used when request contains images or mixed content.
 	// When this field is set, the regular Messages field is ignored.
 	MultimodalMessages []MultimodalMessage `json:"-" validate:"omitempty,dive"`
@@ -132,12 +132,14 @@ type CompletionRequest struct {
 
 	// SearchAfterDateFilter: Optional. Filters search results to include content published after a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	//
 	// Deprecated: Use PublishedAfter instead for API compliance.
 	//go:deprecated
 	SearchAfterDateFilter string `json:"search_after_date_filter,omitempty" validate:"omitempty"`
 
 	// SearchBeforeDateFilter: Optional. Filters search results to include content published before a specific date.
 	// Date format: "%m/%d/%Y" (e.g., "3/1/2025")
+	//
 	// Deprecated: Use PublishedBefore instead for API compliance.
 	//go:deprecated
 	SearchBeforeDateFilter string `json:"search_before_date_filter,omitempty" validate:"omitempty"`
@@ -162,6 +164,10 @@ type CompletionRequest struct {
 	// Options: ReasoningEffortLow (faster, simpler answers), ReasoningEffortMedium (balanced approach), ReasoningEffortHigh (deeper, more thorough responses)
 	// Only applicable for sonar-deep-research model.
 	ReasoningEffort string `json:"reasoning_effort,omitempty" validate:"omitempty,oneof=low medium high"`
+
+	// LanguagePreference: Optional. Specify preferred language for search results and responses.
+	// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+	LanguagePreference string `json:"language_preference,omitempty" validate:"omitempty,min=2,max=5"`
 }
 
 // NewCompletionRequest creates a new completion request.
@@ -213,6 +219,7 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 		PublishedAfter          string              `json:"published_after,omitempty"`
 		PublishedBefore         string              `json:"published_before,omitempty"`
 		ReasoningEffort         string              `json:"reasoning_effort,omitempty"`
+		LanguagePreference      string              `json:"language_preference,omitempty"`
 		WebSearchOptions        *WebSearchOptions   `json:"web_search_options,omitempty"`
 	}
 
@@ -242,6 +249,7 @@ func (r *CompletionRequest) MarshalJSON() ([]byte, error) {
 		PublishedAfter:          r.PublishedAfter,
 		PublishedBefore:         r.PublishedBefore,
 		ReasoningEffort:         r.ReasoningEffort,
+		LanguagePreference:      r.LanguagePreference,
 		WebSearchOptions:        r.WebSearchOptions,
 	}
 
@@ -312,7 +320,7 @@ type ResponseFormat struct {
 type JSONSchemaConfig struct {
 	// Schema is the JSON schema object that defines the expected output structure.
 	// It can be a Go struct, map, or any valid JSON schema.
-	Schema interface{} `json:"schema" validate:"required"`
+	Schema any `json:"schema" validate:"required"`
 }
 
 // RegexConfig contains the regex pattern for structured output.
@@ -540,7 +548,7 @@ func WithResponseFormat(format *ResponseFormat) CompletionRequestOption {
 
 // WithJSONSchemaResponseFormat sets the response format to JSON Schema.
 // The schema parameter can be a Go struct, map, or any valid JSON schema.
-func WithJSONSchemaResponseFormat(schema interface{}) CompletionRequestOption {
+func WithJSONSchemaResponseFormat(schema any) CompletionRequestOption {
 	return func(r *CompletionRequest) {
 		r.ResponseFormat = &ResponseFormat{
 			Type: "json_schema",
@@ -595,8 +603,8 @@ func WithImageFormatFilter(formats []string) CompletionRequestOption {
 // WithSearchAfterDateFilter sets the search after date filter option.
 // Filters search results to include content published after the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
-// Deprecated: Use WithPublishedAfter instead for API compliance.
 //
+// Deprecated: Use WithPublishedAfter instead for API compliance.
 //go:deprecated
 func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
@@ -607,8 +615,8 @@ func WithSearchAfterDateFilter(date time.Time) CompletionRequestOption {
 // WithSearchBeforeDateFilter sets the search before date filter option.
 // Filters search results to include content published before the specified date.
 // The date is automatically formatted to "%m/%d/%Y" format (e.g., "3/1/2025").
-// Deprecated: Use WithPublishedBefore instead for API compliance.
 //
+// Deprecated: Use WithPublishedBefore instead for API compliance.
 //go:deprecated
 func WithSearchBeforeDateFilter(date time.Time) CompletionRequestOption {
 	return func(r *CompletionRequest) {
@@ -699,5 +707,13 @@ func WithImageFromURL(_ string) CompletionRequestOption {
 	return func(_ *CompletionRequest) {
 		// This is a utility function - in practice, users should build
 		// multimodal messages using the Messages object or Content helpers
+	}
+}
+
+// WithLanguagePreference sets the preferred language for search results and responses.
+// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+func WithLanguagePreference(lang string) CompletionRequestOption {
+	return func(r *CompletionRequest) {
+		r.LanguagePreference = lang
 	}
 }

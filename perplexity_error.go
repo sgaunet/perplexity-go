@@ -115,12 +115,12 @@ func (e *AsyncJobTimeoutError) Is(target error) bool {
 // AsyncJobValidationError represents validation errors for async job requests.
 type AsyncJobValidationError struct {
 	Field   string
-	Value   interface{}
+	Value   any
 	Message string
 }
 
 // NewAsyncJobValidationError creates a new validation error.
-func NewAsyncJobValidationError(field string, value interface{}, message string) *AsyncJobValidationError {
+func NewAsyncJobValidationError(field string, value any, message string) *AsyncJobValidationError {
 	return &AsyncJobValidationError{
 		Field:   field,
 		Value:   value,

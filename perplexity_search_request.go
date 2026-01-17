@@ -4,11 +4,13 @@ package perplexity
 // The Search API provides direct access to Perplexity's real-time web index
 // without the generative LLM layer, returning raw ranked search results.
 type SearchRequest struct {
-	Query              interface{} `json:"query" validate:"required"` // string or []string
+	Query              any `json:"query" validate:"required"` // string or []string
 	MaxResults         *int        `json:"max_results,omitempty"`
+	MaxTokens          *int        `json:"max_tokens,omitempty"`
 	ReturnImages       *bool       `json:"return_images,omitempty"`
 	ReturnSnippets     *bool       `json:"return_snippets,omitempty"`
 	Country            *string     `json:"country,omitempty"`
+	LanguagePreference *string     `json:"language_preference,omitempty"`
 	SearchDomainFilter *[]string   `json:"search_domain_filter,omitempty"`
 }
 
@@ -17,7 +19,7 @@ type SearchRequestOption func(*SearchRequest)
 
 // NewSearchRequest creates a new SearchRequest with the given query and options.
 // The query can be either a single string or an array of strings for multi-query searches.
-func NewSearchRequest(query interface{}, opts ...SearchRequestOption) *SearchRequest {
+func NewSearchRequest(query any, opts ...SearchRequestOption) *SearchRequest {
 	req := &SearchRequest{
 		Query: query,
 	}
@@ -31,6 +33,13 @@ func NewSearchRequest(query interface{}, opts ...SearchRequestOption) *SearchReq
 func WithSearchMaxResults(maxResults int) SearchRequestOption {
 	return func(r *SearchRequest) {
 		r.MaxResults = &maxResults
+	}
+}
+
+// WithSearchMaxTokens sets the maximum tokens extracted per page in search results.
+func WithSearchMaxTokens(maxTokens int) SearchRequestOption {
+	return func(r *SearchRequest) {
+		r.MaxTokens = &maxTokens
 	}
 }
 
@@ -52,6 +61,14 @@ func WithSearchReturnSnippets(include bool) SearchRequestOption {
 func WithSearchCountry(country string) SearchRequestOption {
 	return func(r *SearchRequest) {
 		r.Country = &country
+	}
+}
+
+// WithSearchLanguagePreference sets the preferred language for search results.
+// Accepts ISO 639-1 language codes (e.g., "en", "fr", "es") or extended format with country (e.g., "en-US", "fr-CA").
+func WithSearchLanguagePreference(lang string) SearchRequestOption {
+	return func(r *SearchRequest) {
+		r.LanguagePreference = &lang
 	}
 }
 

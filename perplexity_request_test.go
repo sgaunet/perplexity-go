@@ -602,3 +602,28 @@ func TestWithReasoningEffort(t *testing.T) {
 		assert.Equal(t, perplexity.ReasoningEffortHigh, req.ReasoningEffort)
 	})
 }
+
+func TestWithLanguagePreference(t *testing.T) {
+	t.Run("WithLanguagePreference sets the language preference", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithLanguagePreference("fr"))
+		assert.Equal(t, "fr", req.LanguagePreference)
+	})
+
+	t.Run("WithLanguagePreference accepts ISO 639-1 codes", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithLanguagePreference("en"))
+		assert.Equal(t, "en", req.LanguagePreference)
+
+		req = perplexity.NewCompletionRequest(perplexity.WithLanguagePreference("es"))
+		assert.Equal(t, "es", req.LanguagePreference)
+	})
+
+	t.Run("WithLanguagePreference accepts extended format with country", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest(perplexity.WithLanguagePreference("en-US"))
+		assert.Equal(t, "en-US", req.LanguagePreference)
+	})
+
+	t.Run("LanguagePreference is empty by default", func(t *testing.T) {
+		req := perplexity.NewCompletionRequest()
+		assert.Equal(t, "", req.LanguagePreference)
+	})
+}

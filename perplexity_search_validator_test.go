@@ -87,6 +87,92 @@ func TestSearchRequestValidator_ValidateMaxResults(t *testing.T) {
 	})
 }
 
+func TestSearchRequestValidator_ValidateMaxTokens(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("valid max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(500))
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+
+	t.Run("zero max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(0))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+
+	t.Run("negative max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(-10))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "positive integer")
+	})
+
+	t.Run("nil max_tokens", func(t *testing.T) {
+		req := NewSearchRequest("test")
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+}
+
+func TestSearchRequestValidator_ValidateLanguagePreference(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("valid ISO 639-1 codes", func(t *testing.T) {
+		validCodes := []string{"en", "fr", "es", "de", "ja", "zh"}
+		for _, code := range validCodes {
+			req := NewSearchRequest("test", WithSearchLanguagePreference(code))
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "language code %s should be valid", code)
+		}
+	})
+
+	t.Run("valid extended format with country", func(t *testing.T) {
+		validCodes := []string{"en-US", "en-GB", "fr-CA", "es-MX", "pt-BR"}
+		for _, code := range validCodes {
+			req := NewSearchRequest("test", WithSearchLanguagePreference(code))
+			err := validator.ValidateSearchRequest(req)
+			assert.NoError(t, err, "language code %s should be valid", code)
+		}
+	})
+
+	t.Run("invalid format - uppercase language code", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("EN"))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ISO 639")
+	})
+
+	t.Run("invalid format - lowercase country code", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("en-us"))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ISO 639")
+	})
+
+	t.Run("invalid format - too short", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("e"))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "2-5 characters")
+	})
+
+	t.Run("invalid format - too long", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("en-USA"))
+		err := validator.ValidateSearchRequest(req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "2-5 characters")
+	})
+
+	t.Run("nil language_preference", func(t *testing.T) {
+		req := NewSearchRequest("test")
+		err := validator.ValidateSearchRequest(req)
+		assert.NoError(t, err)
+	})
+}
+
 func TestSearchRequestValidator_ValidateCountry(t *testing.T) {
 	validator := NewSearchRequestValidator()
 

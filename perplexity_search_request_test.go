@@ -27,6 +27,7 @@ func TestNewSearchRequest(t *testing.T) {
 
 	t.Run("with all options", func(t *testing.T) {
 		maxResults := 10
+		maxTokens := 500
 		returnImages := true
 		returnSnippets := false
 		country := "US"
@@ -35,6 +36,7 @@ func TestNewSearchRequest(t *testing.T) {
 		req := NewSearchRequest(
 			"test query",
 			WithSearchMaxResults(maxResults),
+			WithSearchMaxTokens(maxTokens),
 			WithSearchReturnImages(returnImages),
 			WithSearchReturnSnippets(returnSnippets),
 			WithSearchCountry(country),
@@ -43,6 +45,7 @@ func TestNewSearchRequest(t *testing.T) {
 
 		assert.Equal(t, "test query", req.Query)
 		assert.Equal(t, &maxResults, req.MaxResults)
+		assert.Equal(t, &maxTokens, req.MaxTokens)
 		assert.Equal(t, &returnImages, req.ReturnImages)
 		assert.Equal(t, &returnSnippets, req.ReturnSnippets)
 		assert.Equal(t, &country, req.Country)
@@ -115,6 +118,41 @@ func TestSearchRequestMarshal(t *testing.T) {
 		assert.Equal(t, "arxiv.org", domainArray[1])
 	})
 
+	t.Run("with max_tokens", func(t *testing.T) {
+		maxTokens := 750
+		req := NewSearchRequest(
+			"test query",
+			WithSearchMaxTokens(maxTokens),
+		)
+
+		data, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		var result map[string]interface{}
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "test query", result["query"])
+		assert.Equal(t, float64(750), result["max_tokens"])
+	})
+
+	t.Run("with language_preference", func(t *testing.T) {
+		req := NewSearchRequest(
+			"search query",
+			WithSearchLanguagePreference("es"),
+		)
+
+		data, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		var result map[string]interface{}
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "search query", result["query"])
+		assert.Equal(t, "es", result["language_preference"])
+	})
+
 	t.Run("minimal request", func(t *testing.T) {
 		req := NewSearchRequest("simple query")
 
@@ -127,6 +165,7 @@ func TestSearchRequestMarshal(t *testing.T) {
 
 		assert.Equal(t, "simple query", result["query"])
 		assert.NotContains(t, result, "max_results")
+		assert.NotContains(t, result, "max_tokens")
 		assert.NotContains(t, result, "return_images")
 		assert.NotContains(t, result, "return_snippets")
 		assert.NotContains(t, result, "country")
@@ -174,6 +213,11 @@ func TestSearchRequestOptions(t *testing.T) {
 		assert.Equal(t, 20, *req.MaxResults)
 	})
 
+	t.Run("WithSearchMaxTokens", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(1000))
+		assert.Equal(t, 1000, *req.MaxTokens)
+	})
+
 	t.Run("WithSearchReturnImages", func(t *testing.T) {
 		req := NewSearchRequest("test", WithSearchReturnImages(true))
 		assert.Equal(t, true, *req.ReturnImages)
@@ -187,6 +231,11 @@ func TestSearchRequestOptions(t *testing.T) {
 	t.Run("WithSearchCountry", func(t *testing.T) {
 		req := NewSearchRequest("test", WithSearchCountry("GB"))
 		assert.Equal(t, "GB", *req.Country)
+	})
+
+	t.Run("WithSearchLanguagePreference", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguagePreference("fr"))
+		assert.Equal(t, "fr", *req.LanguagePreference)
 	})
 
 	t.Run("WithSearchDomains", func(t *testing.T) {
