@@ -141,7 +141,7 @@ type AsyncJobRequest struct {
 func (r *AsyncJobRequest) MarshalJSON() ([]byte, error) {
 	// Create the request wrapper structure
 	type asyncRequestWrapper struct {
-		Request interface{} `json:"request"`
+		Request any `json:"request"`
 	}
 
 	// If no multimodal messages, use standard marshaling for the inner request
@@ -274,8 +274,8 @@ func (r *AsyncJobResponse) UnmarshalJSON(data []byte) error {
 	return r.parseTimestampFields(raw)
 }
 
-// parseTimestamp parses a timestamp from interface{} (either Unix int or RFC3339 string).
-func parseTimestamp(value interface{}) (time.Time, error) {
+// parseTimestamp parses a timestamp from any (either Unix int or RFC3339 string).
+func parseTimestamp(value any) (time.Time, error) {
 	switch v := value.(type) {
 	case float64:
 		// Unix timestamp as number
@@ -377,8 +377,8 @@ type tempResponse struct {
 }
 
 // parseBasicFields parses the basic non-timestamp fields.
-func (r *AsyncJobResponse) parseBasicFields(data []byte) (map[string]interface{}, tempResponse, error) {
-	var raw map[string]interface{}
+func (r *AsyncJobResponse) parseBasicFields(data []byte) (map[string]any, tempResponse, error) {
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, tempResponse{}, fmt.Errorf("failed to unmarshal raw data: %w", err)
 	}
@@ -401,7 +401,7 @@ func (r *AsyncJobResponse) assignBasicFields(temp *tempResponse) {
 }
 
 // parseTimestampFields parses all timestamp fields.
-func (r *AsyncJobResponse) parseTimestampFields(raw map[string]interface{}) error {
+func (r *AsyncJobResponse) parseTimestampFields(raw map[string]any) error {
 	if err := r.parseCreatedAt(raw); err != nil {
 		return err
 	}
@@ -412,7 +412,7 @@ func (r *AsyncJobResponse) parseTimestampFields(raw map[string]interface{}) erro
 }
 
 // parseCreatedAt parses the created_at timestamp.
-func (r *AsyncJobResponse) parseCreatedAt(raw map[string]interface{}) error {
+func (r *AsyncJobResponse) parseCreatedAt(raw map[string]any) error {
 	if createdAt, exists := raw["created_at"]; exists {
 		parsed, err := parseTimestamp(createdAt)
 		if err != nil {
@@ -424,7 +424,7 @@ func (r *AsyncJobResponse) parseCreatedAt(raw map[string]interface{}) error {
 }
 
 // parseCompletedAt parses the completed_at timestamp (optional).
-func (r *AsyncJobResponse) parseCompletedAt(raw map[string]interface{}) error {
+func (r *AsyncJobResponse) parseCompletedAt(raw map[string]any) error {
 	if completedAt, exists := raw["completed_at"]; exists && completedAt != nil {
 		parsed, err := parseTimestamp(completedAt)
 		if err != nil {
@@ -436,7 +436,7 @@ func (r *AsyncJobResponse) parseCompletedAt(raw map[string]interface{}) error {
 }
 
 // parseExpiresAt parses the expires_at timestamp.
-func (r *AsyncJobResponse) parseExpiresAt(raw map[string]interface{}) error {
+func (r *AsyncJobResponse) parseExpiresAt(raw map[string]any) error {
 	if expiresAt, exists := raw["expires_at"]; exists {
 		parsed, err := parseTimestamp(expiresAt)
 		if err != nil {

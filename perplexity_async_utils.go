@@ -203,9 +203,7 @@ func (s *Client) calculateNextInterval(currentInterval time.Duration, opts *Asyn
 	nextInterval := time.Duration(float64(currentInterval) * opts.BackoffMultiplier)
 
 	// Cap at maximum interval
-	if nextInterval > opts.MaxInterval {
-		nextInterval = opts.MaxInterval
-	}
+	nextInterval = min(nextInterval, opts.MaxInterval)
 
 	// Add jitter if enabled
 	if opts.JitterEnabled {

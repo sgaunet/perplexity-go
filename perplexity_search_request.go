@@ -4,7 +4,7 @@ package perplexity
 // The Search API provides direct access to Perplexity's real-time web index
 // without the generative LLM layer, returning raw ranked search results.
 type SearchRequest struct {
-	Query              interface{} `json:"query" validate:"required"` // string or []string
+	Query              any `json:"query" validate:"required"` // string or []string
 	MaxResults         *int        `json:"max_results,omitempty"`
 	MaxTokens          *int        `json:"max_tokens,omitempty"`
 	ReturnImages       *bool       `json:"return_images,omitempty"`
@@ -19,7 +19,7 @@ type SearchRequestOption func(*SearchRequest)
 
 // NewSearchRequest creates a new SearchRequest with the given query and options.
 // The query can be either a single string or an array of strings for multi-query searches.
-func NewSearchRequest(query interface{}, opts ...SearchRequestOption) *SearchRequest {
+func NewSearchRequest(query any, opts ...SearchRequestOption) *SearchRequest {
 	req := &SearchRequest{
 		Query: query,
 	}

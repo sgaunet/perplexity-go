@@ -124,8 +124,8 @@ func (r *CompletionResponse) GetLastContent() string {
 }
 
 // GetCitations returns the citations of the completion response.
-// Deprecated: Use GetSearchResults instead for better structured data with titles, URLs, and metadata.
 //
+// Deprecated: Use GetSearchResults instead for better structured data with titles, URLs, and metadata.
 //go:deprecated
 func (r *CompletionResponse) GetCitations() []string {
 	if r.Citations == nil {

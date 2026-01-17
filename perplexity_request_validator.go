@@ -452,31 +452,45 @@ func (v *RequestValidator) validateContent(content Content) error {
 	// Validate specific content types
 	switch content.Type {
 	case ContentTypeText:
-		if content.Text == nil || *content.Text == "" {
-			return ErrTextContentEmpty
-		}
+		return v.validateTextContent(content)
 	case ContentTypeImageURL:
-		if content.ImageURL == nil {
-			return ErrImageURLContentNil
-		}
-		// Validate image URL
-		processor := NewImageProcessor()
-		if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
-			return fmt.Errorf("invalid image URL: %w", err)
-		}
+		return v.validateImageURLContent(content)
 	case ContentTypeFileURL:
-		if content.FileURL == nil {
-			return ErrFileURLContentNil
-		}
-		// Validate file URL
-		processor := NewFileProcessor()
-		if err := processor.ValidateFileURL(content.FileURL.URL); err != nil {
-			return fmt.Errorf("invalid file URL: %w", err)
-		}
+		return v.validateFileURLContent(content)
 	default:
 		return ErrInvalidContentType
 	}
+}
 
+// validateTextContent validates text content.
+func (v *RequestValidator) validateTextContent(content Content) error {
+	if content.Text == nil || *content.Text == "" {
+		return ErrTextContentEmpty
+	}
+	return nil
+}
+
+// validateImageURLContent validates image URL content.
+func (v *RequestValidator) validateImageURLContent(content Content) error {
+	if content.ImageURL == nil {
+		return ErrImageURLContentNil
+	}
+	processor := NewImageProcessor()
+	if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
+		return fmt.Errorf("invalid image URL: %w", err)
+	}
+	return nil
+}
+
+// validateFileURLContent validates file URL content.
+func (v *RequestValidator) validateFileURLContent(content Content) error {
+	if content.FileURL == nil {
+		return ErrFileURLContentNil
+	}
+	processor := NewFileProcessor()
+	if err := processor.ValidateFileURL(content.FileURL.URL); err != nil {
+		return fmt.Errorf("invalid file URL: %w", err)
+	}
 	return nil
 }
 

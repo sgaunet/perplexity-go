@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -130,10 +131,8 @@ func (p *ImageProcessor) ValidateImageURL(imageURL string) error {
 // ValidateImageFormat checks if the image format is supported by the Perplexity API.
 func (p *ImageProcessor) ValidateImageFormat(format string) error {
 	format = strings.ToLower(format)
-	for _, supported := range SupportedImageFormats {
-		if format == supported {
-			return nil
-		}
+	if slices.Contains(SupportedImageFormats, format) {
+		return nil
 	}
 	return ErrImageFormatNotSupported
 }

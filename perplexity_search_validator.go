@@ -46,42 +46,76 @@ func (v *SearchRequestValidator) ValidateSearchRequest(req *SearchRequest) error
 		return err
 	}
 
-	// Validate max_results if provided
-	if req.MaxResults != nil && *req.MaxResults <= 0 {
-		return ErrSearchMaxResultsInvalid
-	}
-
-	// Validate max_tokens if provided
-	if req.MaxTokens != nil && *req.MaxTokens <= 0 {
-		return ErrSearchMaxTokensInvalid
-	}
-
-	// Validate country if provided
-	if req.Country != nil && *req.Country != "" {
-		if err := v.validateCountry(*req.Country); err != nil {
-			return err
-		}
-	}
-
-	// Validate language_preference if provided
-	if req.LanguagePreference != nil && *req.LanguagePreference != "" {
-		if err := v.validateLanguagePreference(*req.LanguagePreference); err != nil {
-			return err
-		}
-	}
-
-	// Validate domain filter if provided
-	if req.SearchDomainFilter != nil {
-		if err := v.validateDomainFilter(*req.SearchDomainFilter); err != nil {
-			return err
-		}
+	// Validate optional fields
+	if err := v.validateOptionalFields(req); err != nil {
+		return err
 	}
 
 	return nil
 }
 
+// validateOptionalFields validates all optional fields in the search request.
+func (v *SearchRequestValidator) validateOptionalFields(req *SearchRequest) error {
+	if err := v.validateMaxResults(req.MaxResults); err != nil {
+		return err
+	}
+	if err := v.validateMaxTokens(req.MaxTokens); err != nil {
+		return err
+	}
+	if err := v.validateCountryField(req.Country); err != nil {
+		return err
+	}
+	if err := v.validateLanguagePreferenceField(req.LanguagePreference); err != nil {
+		return err
+	}
+	if err := v.validateDomainFilterField(req.SearchDomainFilter); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateMaxResults validates the max_results field.
+func (v *SearchRequestValidator) validateMaxResults(maxResults *int) error {
+	if maxResults != nil && *maxResults <= 0 {
+		return ErrSearchMaxResultsInvalid
+	}
+	return nil
+}
+
+// validateMaxTokens validates the max_tokens field.
+func (v *SearchRequestValidator) validateMaxTokens(maxTokens *int) error {
+	if maxTokens != nil && *maxTokens <= 0 {
+		return ErrSearchMaxTokensInvalid
+	}
+	return nil
+}
+
+// validateCountryField validates the country field.
+func (v *SearchRequestValidator) validateCountryField(country *string) error {
+	if country != nil && *country != "" {
+		return v.validateCountry(*country)
+	}
+	return nil
+}
+
+// validateLanguagePreferenceField validates the language_preference field.
+func (v *SearchRequestValidator) validateLanguagePreferenceField(languagePreference *string) error {
+	if languagePreference != nil && *languagePreference != "" {
+		return v.validateLanguagePreference(*languagePreference)
+	}
+	return nil
+}
+
+// validateDomainFilterField validates the domain filter field.
+func (v *SearchRequestValidator) validateDomainFilterField(domainFilter *[]string) error {
+	if domainFilter != nil {
+		return v.validateDomainFilter(*domainFilter)
+	}
+	return nil
+}
+
 // validateQuery validates that the query is a non-empty string or array of strings.
-func (v *SearchRequestValidator) validateQuery(query interface{}) error {
+func (v *SearchRequestValidator) validateQuery(query any) error {
 	if query == nil {
 		return ErrSearchQueryRequired
 	}
