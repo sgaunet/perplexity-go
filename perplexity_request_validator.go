@@ -95,6 +95,9 @@ var (
 	// ErrImageURLContentNil is returned when image URL content is nil.
 	ErrImageURLContentNil = errors.New("image URL content cannot be nil")
 
+	// ErrFileURLContentNil is returned when file URL content is nil.
+	ErrFileURLContentNil = errors.New("file URL content cannot be nil")
+
 	// ErrLanguagePreferenceInvalid is returned when language preference format is invalid.
 	ErrLanguagePreferenceInvalid = errors.New("language_preference must be valid ISO 639 format (e.g., 'en', 'en-US')")
 )
@@ -460,6 +463,15 @@ func (v *RequestValidator) validateContent(content Content) error {
 		processor := NewImageProcessor()
 		if err := processor.ValidateImageURL(content.ImageURL.URL); err != nil {
 			return fmt.Errorf("invalid image URL: %w", err)
+		}
+	case ContentTypeFileURL:
+		if content.FileURL == nil {
+			return ErrFileURLContentNil
+		}
+		// Validate file URL
+		processor := NewFileProcessor()
+		if err := processor.ValidateFileURL(content.FileURL.URL); err != nil {
+			return fmt.Errorf("invalid file URL: %w", err)
 		}
 	default:
 		return ErrInvalidContentType

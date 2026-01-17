@@ -45,7 +45,7 @@ const (
 // CompletionRequest is a request object for the Perplexity API.
 // https://docs.perplexity.ai/api-reference/chat-completions
 type CompletionRequest struct {
-	Messages []Message `json:"messages" validate:"required,dive"`
+	Messages []Message `json:"messages" validate:"required_without=MultimodalMessages,dive"`
 	// MultimodalMessages: Optional. Used when request contains images or mixed content.
 	// When this field is set, the regular Messages field is ignored.
 	MultimodalMessages []MultimodalMessage `json:"-" validate:"omitempty,dive"`

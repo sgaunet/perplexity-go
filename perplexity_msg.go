@@ -10,17 +10,26 @@ const (
 	ContentTypeText ContentType = "text"
 	// ContentTypeImageURL represents image URL content in a multimodal message.
 	ContentTypeImageURL ContentType = "image_url"
+	// ContentTypeFileURL represents file URL content in a multimodal message.
+	ContentTypeFileURL ContentType = "file_url"
 )
 
-// Content represents either text or image content in a multimodal message.
+// Content represents text, image, or file content in a multimodal message.
 type Content struct {
-	Type     ContentType `json:"type" validate:"required,oneof=text image_url"`
+	Type     ContentType `json:"type" validate:"required,oneof=text image_url file_url"`
 	Text     *string     `json:"text,omitempty" validate:"required_if=Type text"`
 	ImageURL *ImageURL   `json:"image_url,omitempty" validate:"required_if=Type image_url"`
+	FileURL  *FileURL    `json:"file_url,omitempty" validate:"required_if=Type file_url"`
+	FileName *string     `json:"file_name,omitempty"` // Optional filename for base64 encoded files
 }
 
 // ImageURL represents image content with URL or base64 data URI.
 type ImageURL struct {
+	URL string `json:"url" validate:"required"`
+}
+
+// FileURL represents file content with URL or base64 data.
+type FileURL struct {
 	URL string `json:"url" validate:"required"`
 }
 
@@ -57,6 +66,32 @@ func NewImageFileContent(filepath string) (Content, error) {
 	}
 
 	return NewImageURLContent(dataURI), nil
+}
+
+// NewFileURLContent creates a file URL content object for multimodal messages.
+// The fileName parameter is optional and only required for base64 encoded files.
+func NewFileURLContent(url string, fileName string) Content {
+	content := Content{
+		Type: ContentTypeFileURL,
+		FileURL: &FileURL{
+			URL: url,
+		},
+	}
+	if fileName != "" {
+		content.FileName = &fileName
+	}
+	return content
+}
+
+// NewFileFileContent creates file content from a file path by encoding it to base64.
+func NewFileFileContent(filepath string) (Content, error) {
+	processor := NewFileProcessor()
+	base64Data, fileName, err := processor.EncodeFileFromPath(filepath)
+	if err != nil {
+		return Content{}, err
+	}
+
+	return NewFileURLContent(base64Data, fileName), nil
 }
 
 // Error definitions.
@@ -159,7 +194,7 @@ func (m *Messages) GetSystemMessage() string {
 	return m.systemMessage
 }
 
-// AddMultimodalUserMessage adds a user message with mixed content (text + images).
+// AddMultimodalUserMessage adds a user message with mixed content (text + images + files).
 func (m *Messages) AddMultimodalUserMessage(contents []Content) error {
 	if len(contents) == 0 {
 		return ErrMultimodalContentEmpty
@@ -167,7 +202,7 @@ func (m *Messages) AddMultimodalUserMessage(contents []Content) error {
 
 	// Validate content types
 	for _, content := range contents {
-		if content.Type != ContentTypeText && content.Type != ContentTypeImageURL {
+		if content.Type != ContentTypeText && content.Type != ContentTypeImageURL && content.Type != ContentTypeFileURL {
 			return ErrMultimodalInvalidContentType
 		}
 	}
@@ -213,6 +248,37 @@ func (m *Messages) AddUserMessageWithImageFile(text, filepath string) error {
 	contents := []Content{
 		NewTextContent(text),
 		imageContent,
+	}
+
+	return m.AddMultimodalUserMessage(contents)
+}
+
+// AddUserMessageWithFile adds a user message with text and a single file URL.
+func (m *Messages) AddUserMessageWithFile(text, fileURL, fileName string) error {
+	// Validate file URL
+	processor := NewFileProcessor()
+	if err := processor.ValidateFileURL(fileURL); err != nil {
+		return err
+	}
+
+	contents := []Content{
+		NewTextContent(text),
+		NewFileURLContent(fileURL, fileName),
+	}
+
+	return m.AddMultimodalUserMessage(contents)
+}
+
+// AddUserMessageWithFileFromPath adds a user message with text and file from file path.
+func (m *Messages) AddUserMessageWithFileFromPath(text, filepath string) error {
+	fileContent, err := NewFileFileContent(filepath)
+	if err != nil {
+		return err
+	}
+
+	contents := []Content{
+		NewTextContent(text),
+		fileContent,
 	}
 
 	return m.AddMultimodalUserMessage(contents)
@@ -275,6 +341,22 @@ func (m *Messages) HasImages() bool {
 	for _, msg := range m.multimodalMessages {
 		for _, content := range msg.Content {
 			if content.Type == ContentTypeImageURL {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// HasFiles returns true if any of the multimodal messages contain files.
+func (m *Messages) HasFiles() bool {
+	if !m.useMultimodal {
+		return false
+	}
+
+	for _, msg := range m.multimodalMessages {
+		for _, content := range msg.Content {
+			if content.Type == ContentTypeFileURL {
 				return true
 			}
 		}
