@@ -121,7 +121,7 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -188,7 +188,7 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 	httpReq.Header.Set("Cache-Control", "no-cache")
 	httpReq.Header.Set("Connection", "keep-alive")
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -279,7 +279,7 @@ func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobReq
 		return nil, err
 	}
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -307,7 +307,7 @@ func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*Asy
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -363,7 +363,7 @@ func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -420,7 +420,7 @@ func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRe
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}

@@ -157,7 +157,7 @@ func (p *FileProcessor) CheckFileURLAccessibility(ctx context.Context, fileURL s
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is validated as HTTPS before this call
 	if err != nil {
 		return fmt.Errorf("file URL not accessible: %w", err)
 	}
