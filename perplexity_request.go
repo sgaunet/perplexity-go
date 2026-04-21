@@ -25,8 +25,8 @@ const (
 	// DefaultFrequencyPenalty is the default frequency penalty value (0.0 to 1.0).
 	DefaultFrequencyPenalty = 1.0
 
-	// DefaultSearchRecencyFilter is the default search recency filter value.
-	DefaultSearchRecencyFilter = "month"
+	// DefaultSearchRecencyFilter is the default search recency filter value (empty = omitted from the request).
+	DefaultSearchRecencyFilter = ""
 
 	// DefaultSearchMode is the default search mode value.
 	DefaultSearchMode = "web"

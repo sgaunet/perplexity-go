@@ -261,8 +261,6 @@ func TestSupportedFileFormats(t *testing.T) {
 
 // TestValidateRequestWithLocalImageFile reproduces the bug report:
 // NewImageFileContent produces a data URI, and req.Validate() must accept it.
-// SearchRecencyFilter is explicitly cleared because NewCompletionRequest defaults it to "month",
-// which is (separately) rejected by validateImageCompatibility — unrelated to this fix.
 func TestValidateRequestWithLocalImageFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	imgPath := filepath.Join(tmpDir, "local.jpg")
@@ -274,7 +272,6 @@ func TestValidateRequestWithLocalImageFile(t *testing.T) {
 	req := perplexity.NewCompletionRequest(
 		perplexity.WithMessagesFromMessages(&msgs),
 		perplexity.WithModel("sonar-pro"),
-		perplexity.WithSearchRecencyFilter(""),
 	)
 	assert.NoError(t, req.Validate())
 }
