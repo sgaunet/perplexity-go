@@ -1,6 +1,9 @@
 package perplexity
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ContentType represents the type of content in a multimodal message.
 type ContentType string
@@ -83,7 +86,8 @@ func NewFileURLContent(url string, fileName string) Content {
 	return content
 }
 
-// NewFileFileContent creates file content from a file path by encoding it to base64.
+// NewFileFileContent creates file content from a file path by encoding it to a base64 data URI.
+// The resulting URL field contains a "data:<mime>;base64,<payload>" URI accepted by the Perplexity API.
 func NewFileFileContent(filepath string) (Content, error) {
 	processor := NewFileProcessor()
 	base64Data, fileName, err := processor.EncodeFileFromPath(filepath)
@@ -91,7 +95,10 @@ func NewFileFileContent(filepath string) (Content, error) {
 		return Content{}, err
 	}
 
-	return NewFileURLContent(base64Data, fileName), nil
+	format := processor.getFileFormatFromPath(filepath)
+	mime := processor.getFileMimeType(format)
+	dataURI := fmt.Sprintf("data:%s;base64,%s", mime, base64Data)
+	return NewFileURLContent(dataURI, fileName), nil
 }
 
 // Error definitions.

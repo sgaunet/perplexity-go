@@ -1,6 +1,7 @@
 package perplexity_test
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/sgaunet/perplexity-go/v2"
@@ -63,6 +64,59 @@ func TestImageProcessor(t *testing.T) {
 			err := processor.ValidateImageURL(url)
 			assert.Error(t, err, "URL %s should be invalid", url)
 		}
+	})
+
+	t.Run("ValidateImageURL with valid data URIs", func(t *testing.T) {
+		payload := base64.StdEncoding.EncodeToString([]byte("tiny image bytes"))
+		validDataURIs := []string{
+			"data:image/png;base64," + payload,
+			"data:image/jpeg;base64," + payload,
+			"data:image/webp;base64," + payload,
+			"data:image/gif;base64," + payload,
+			"data:IMAGE/PNG;base64," + payload, // mime is case-insensitive
+		}
+		for _, uri := range validDataURIs {
+			err := processor.ValidateImageURL(uri)
+			assert.NoError(t, err, "data URI %q should be valid", uri[:40])
+		}
+	})
+
+	t.Run("ValidateImageURL with unsupported data URI mime", func(t *testing.T) {
+		payload := base64.StdEncoding.EncodeToString([]byte("bytes"))
+		cases := []string{
+			"data:image/bmp;base64," + payload,    // unsupported image mime
+			"data:image/tiff;base64," + payload,   // unsupported image mime
+			"data:application/pdf;base64," + payload, // non-image mime
+			"data:text/plain;base64," + payload,   // non-image mime
+		}
+		for _, uri := range cases {
+			err := processor.ValidateImageURL(uri)
+			assert.Error(t, err, "data URI %q should be rejected", uri)
+			assert.ErrorIs(t, err, perplexity.ErrImageFormatNotSupported)
+		}
+	})
+
+	t.Run("ValidateImageURL with malformed data URIs", func(t *testing.T) {
+		cases := []string{
+			"data:image/png;base64,",          // empty payload
+			"data:;base64,YWJj",               // empty mime
+			"data:image/png,YWJj",             // missing ";base64," separator
+			"data:image/png;base64,!!!not-base64!!!", // invalid base64 payload
+			"data:image/png;base64,YWJj==extra", // trailing garbage => decode fails
+		}
+		for _, uri := range cases {
+			err := processor.ValidateImageURL(uri)
+			assert.Error(t, err, "data URI %q should be malformed", uri)
+			assert.ErrorIs(t, err, perplexity.ErrImageDataURIMalformed)
+		}
+	})
+
+	t.Run("ValidateImageURL with oversized data URI payload", func(t *testing.T) {
+		oversized := make([]byte, perplexity.MaxImageSizeBytes+1)
+		uri := "data:image/png;base64," + base64.StdEncoding.EncodeToString(oversized)
+		err := processor.ValidateImageURL(uri)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, perplexity.ErrImageTooLarge)
 	})
 
 	t.Run("EstimateTokenUsage", func(t *testing.T) {

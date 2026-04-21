@@ -44,6 +44,9 @@ var (
 	// ErrImageURLInvalid is returned when an image URL is malformed.
 	ErrImageURLInvalid = errors.New("invalid image URL format")
 
+	// ErrImageDataURIMalformed is returned when an image data URI is malformed.
+	ErrImageDataURIMalformed = errors.New("invalid image data URI")
+
 	// ErrImageURLBadStatus is returned when image URL returns a non-2xx status.
 	ErrImageURLBadStatus = errors.New("image URL returned bad status")
 
@@ -102,11 +105,16 @@ func (p *ImageProcessor) EncodeImageFromFile(filepath string) (string, error) {
 	return dataURI, nil
 }
 
-// ValidateImageURL validates that a URL is HTTPS and has a valid format.
-// The URL must use HTTPS protocol to be accepted by the Perplexity API.
+// ValidateImageURL validates that a URL is HTTPS (or a base64 data URI) and has a valid format.
+// Accepts either an https:// URL or a data:image/<fmt>;base64,<payload> URI, matching what the
+// Perplexity API accepts and what EncodeImageFromFile produces.
 func (p *ImageProcessor) ValidateImageURL(imageURL string) error {
 	if imageURL == "" {
 		return ErrImageURLInvalid
+	}
+
+	if strings.HasPrefix(imageURL, "data:") {
+		return p.validateImageDataURI(imageURL)
 	}
 
 	// Parse the URL
@@ -188,6 +196,25 @@ func (p *ImageProcessor) EstimateTokenUsage(width, height int) int {
 	return (width * height) / TokenEstimationDivisor
 }
 
+// validateImageDataURI validates a data:image/<fmt>;base64,<payload> URI.
+func (p *ImageProcessor) validateImageDataURI(uri string) error {
+	mime, decoded, err := parseBase64DataURI(uri)
+	if err != nil {
+		return ErrImageDataURIMalformed
+	}
+
+	// Mime must start with "image/" and the suffix must be a supported format.
+	format, ok := strings.CutPrefix(mime, "image/")
+	if !ok {
+		return ErrImageFormatNotSupported
+	}
+	if err := p.ValidateImageFormat(format); err != nil {
+		return err
+	}
+
+	return p.ValidateImageSize(int64(len(decoded)))
+}
+
 // getImageFormatFromPath extracts the image format from a file path.
 func (p *ImageProcessor) getImageFormatFromPath(path string) string {
 	ext := filepath.Ext(path)
@@ -211,6 +238,38 @@ func (p *ImageProcessor) getMimeType(format string) string {
 	default:
 		return "image/" + format
 	}
+}
+
+// errDataURIMalformed is an internal sentinel for parseBase64DataURI failures.
+// Callers map this to their module-specific public error (ErrImageDataURIMalformed, ErrFileDataURIMalformed).
+var errDataURIMalformed = errors.New("malformed data URI")
+
+// parseBase64DataURI parses a "data:<mime>;base64,<payload>" URI.
+// Returns the lowercased mime and decoded bytes, or errDataURIMalformed on any parse failure
+// (missing prefix, missing ";base64," separator, empty mime, empty payload, invalid base64).
+func parseBase64DataURI(uri string) (string, []byte, error) {
+	const prefix = "data:"
+	const sep = ";base64,"
+
+	if !strings.HasPrefix(uri, prefix) {
+		return "", nil, errDataURIMalformed
+	}
+	rest := uri[len(prefix):]
+
+	rawMime, payload, ok := strings.Cut(rest, sep)
+	if !ok {
+		return "", nil, errDataURIMalformed
+	}
+	mime := strings.ToLower(rawMime)
+	if mime == "" || payload == "" {
+		return "", nil, errDataURIMalformed
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return "", nil, errDataURIMalformed
+	}
+	return mime, decoded, nil
 }
 
 // isValidImageContentType checks if a content type corresponds to a supported image format.

@@ -41,6 +41,9 @@ var (
 	// ErrFileURLInvalid is returned when a file URL is malformed.
 	ErrFileURLInvalid = errors.New("invalid file URL format")
 
+	// ErrFileDataURIMalformed is returned when a file data URI is malformed.
+	ErrFileDataURIMalformed = errors.New("invalid file data URI")
+
 	// ErrFileURLBadStatus is returned when file URL returns a non-2xx status.
 	ErrFileURLBadStatus = errors.New("file URL returned bad status")
 
@@ -101,11 +104,16 @@ func (p *FileProcessor) EncodeFileFromPath(filePath string) (string, string, err
 	return base64Data, fileName, nil
 }
 
-// ValidateFileURL validates that a URL is HTTPS and has a valid format.
-// The URL must use HTTPS protocol to be accepted by the Perplexity API.
+// ValidateFileURL validates that a URL is HTTPS (or a base64 data URI) and has a valid format.
+// Accepts either an https:// URL or a data:<mime>;base64,<payload> URI, matching what the
+// Perplexity API accepts for embedded files.
 func (p *FileProcessor) ValidateFileURL(fileURL string) error {
 	if fileURL == "" {
 		return ErrFileURLInvalid
+	}
+
+	if strings.HasPrefix(fileURL, "data:") {
+		return p.validateFileDataURI(fileURL)
 	}
 
 	// Parse the URL
@@ -177,6 +185,21 @@ func (p *FileProcessor) CheckFileURLAccessibility(ctx context.Context, fileURL s
 	return nil
 }
 
+// validateFileDataURI validates a data:<mime>;base64,<payload> URI for supported file formats.
+func (p *FileProcessor) validateFileDataURI(uri string) error {
+	mime, decoded, err := parseBase64DataURI(uri)
+	if err != nil {
+		return ErrFileDataURIMalformed
+	}
+
+	format := p.getFileFormatFromMime(mime)
+	if err := p.ValidateFileFormat(format); err != nil {
+		return err
+	}
+
+	return p.ValidateFileSize(int64(len(decoded)))
+}
+
 // getFileFormatFromPath extracts the file format from a file path.
 func (p *FileProcessor) getFileFormatFromPath(path string) string {
 	ext := filepath.Ext(path)
@@ -184,6 +207,44 @@ func (p *FileProcessor) getFileFormatFromPath(path string) string {
 		return strings.ToLower(ext[1:]) // Remove the dot and convert to lowercase
 	}
 	return ""
+}
+
+// getFileMimeType returns the canonical MIME type for a given supported file format.
+// Returns an empty string for unsupported formats.
+func (p *FileProcessor) getFileMimeType(format string) string {
+	switch strings.ToLower(format) {
+	case "pdf":
+		return "application/pdf"
+	case "doc":
+		return "application/msword"
+	case "docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case "txt":
+		return "text/plain"
+	case "rtf":
+		return "application/rtf"
+	default:
+		return ""
+	}
+}
+
+// getFileFormatFromMime returns the supported file format (e.g. "pdf") for a canonical mime type.
+// Returns an empty string for mime types that don't map to a supported format.
+func (p *FileProcessor) getFileFormatFromMime(mime string) string {
+	switch strings.ToLower(mime) {
+	case "application/pdf":
+		return "pdf"
+	case "application/msword":
+		return "doc"
+	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return "docx"
+	case "text/plain":
+		return "txt"
+	case "application/rtf", "text/rtf":
+		return "rtf"
+	default:
+		return ""
+	}
 }
 
 // isValidFileContentType checks if a content type corresponds to a supported file format.
