@@ -1,6 +1,8 @@
 package perplexity_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -254,4 +256,106 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 		err := r.SendSSEHTTPRequest(&wg, req, nil)
 		assert.NotNil(t, err)
 	})
+}
+
+// newSSEStreamServer returns an httptest server that streams `count` SSE events and flushes
+// between each write. Each event contains a single-char content message, useful for asserting
+// event delivery counts without caring about payload content.
+func newSSEStreamServer(count int, pauseBetween time.Duration) *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Add("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+		for i := 0; i < count; i++ {
+			fmt.Fprintf(w, "data: {\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"x\"}}]}\r\n\r\n")
+			if flusher != nil {
+				flusher.Flush()
+			}
+			if pauseBetween > 0 {
+				time.Sleep(pauseBetween)
+			}
+		}
+	}))
+}
+
+func TestStreamCompletion_ReceivesAllEventsBlocking(t *testing.T) {
+	const eventCount = 20
+	ts := newSSEStreamServer(eventCount, 0)
+	defer ts.Close()
+
+	r := perplexity.NewClient(apiKey)
+	r.SetHTTPClient(ts.Client())
+	r.SetEndpoint(ts.URL)
+
+	req := perplexity.NewCompletionRequest(perplexity.WithMessages([]perplexity.Message{
+		{Role: "user", Content: "test"},
+	}), perplexity.WithStream(true))
+	assert.Nil(t, req.Validate())
+
+	// Unbuffered channel + slow consumer: blocking send must not drop events.
+	ch := make(chan perplexity.CompletionResponse)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- r.StreamCompletion(req, ch)
+	}()
+
+	count := 0
+	for range ch {
+		count++
+		time.Sleep(2 * time.Millisecond)
+	}
+	assert.Nil(t, <-errCh)
+	assert.Equal(t, eventCount, count, "every event must reach the consumer")
+}
+
+func TestStreamCompletion_ContextCancel(t *testing.T) {
+	ts := newSSEStreamServer(200, 5*time.Millisecond)
+	defer ts.Close()
+
+	r := perplexity.NewClient(apiKey)
+	r.SetHTTPClient(ts.Client())
+	r.SetEndpoint(ts.URL)
+
+	req := perplexity.NewCompletionRequest(perplexity.WithMessages([]perplexity.Message{
+		{Role: "user", Content: "test"},
+	}), perplexity.WithStream(true))
+	assert.Nil(t, req.Validate())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan perplexity.CompletionResponse)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- r.StreamCompletionWithContext(ctx, req, ch)
+	}()
+
+	received := 0
+	for range ch {
+		received++
+		if received == 3 {
+			cancel()
+		}
+	}
+	err := <-errCh
+	assert.NotNil(t, err)
+	assert.True(t, errors.Is(err, context.Canceled),
+		"expected context.Canceled in error chain, got %v", err)
+}
+
+func TestStreamCompletion_NilRequest(t *testing.T) {
+	r := perplexity.NewClient(apiKey)
+	ch := make(chan perplexity.CompletionResponse, 1)
+	err := r.StreamCompletion(nil, ch)
+	assert.ErrorIs(t, err, perplexity.ErrNilRequest)
+	// Caller-provided channel must not be closed on validation failure — the caller still owns it.
+	select {
+	case _, ok := <-ch:
+		assert.False(t, ok, "channel should remain open after validation error")
+	default:
+	}
+}
+
+func TestStreamCompletion_NilChannel(t *testing.T) {
+	r := perplexity.NewClient(apiKey)
+	req := perplexity.NewCompletionRequest()
+	err := r.StreamCompletion(req, nil)
+	assert.ErrorIs(t, err, perplexity.ErrNilResponseChannel)
 }

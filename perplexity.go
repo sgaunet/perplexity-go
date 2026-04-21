@@ -148,17 +148,53 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	return r, nil
 }
 
+// StreamCompletion sends a completion request to the Perplexity API using Server-Sent Events.
+// It blocks until the stream ends or an error occurs, writing each event to responseChannel,
+// and closes responseChannel before returning.
+//
+// Typical usage: run this in its own goroutine and consume the channel from the caller:
+//
+//	ch := make(chan perplexity.CompletionResponse)
+//	errCh := make(chan error, 1)
+//	go func() { errCh <- client.StreamCompletion(req, ch) }()
+//	for event := range ch { ... }
+//	if err := <-errCh; err != nil { ... }
+func (s *Client) StreamCompletion(req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
+	return s.StreamCompletionWithContext(context.Background(), req, responseChannel)
+}
+
+// StreamCompletionWithContext is like StreamCompletion but accepts a context for cancellation.
+// Cancelling ctx stops the stream and returns ctx.Err().
+func (s *Client) StreamCompletionWithContext(
+	ctx context.Context,
+	req *CompletionRequest,
+	responseChannel chan<- CompletionResponse,
+) error {
+	if responseChannel == nil {
+		return ErrNilResponseChannel
+	}
+	if req == nil {
+		return ErrNilRequest
+	}
+	defer close(responseChannel)
+	return s.streamSSE(ctx, req, responseChannel)
+}
+
 // SendSSEHTTPRequest sends a completion request to the Perplexity API using Server-Sent Events.
-// It writes each response (event) on the channel responseChannel
-// The channel will be closed when the request is done.
+// The caller must call wg.Add(1) before invoking; this function calls wg.Done() on return and
+// closes responseChannel when the request is done.
+//
+// Deprecated: Use StreamCompletion, which does not require a WaitGroup and applies backpressure
+// instead of silently dropping events when the consumer is not ready.
 func (s *Client) SendSSEHTTPRequest(wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
 	return s.SendSSEHTTPRequestWithContext(context.Background(), wg, req, responseChannel)
 }
 
-// SendSSEHTTPRequestWithContext sends a completion request to the Perplexity API using Server-Sent Events with the given context.
-// It writes each response (event) on the provided responseChannel.
-// The channel will be closed when the request is done.
-func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error { //nolint:gocognit,cyclop
+// SendSSEHTTPRequestWithContext is like SendSSEHTTPRequest but accepts a context for cancellation.
+//
+// Deprecated: Use StreamCompletionWithContext, which does not require a WaitGroup and applies
+// backpressure instead of silently dropping events when the consumer is not ready.
+func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.WaitGroup, req *CompletionRequest, responseChannel chan<- CompletionResponse) error {
 	if responseChannel == nil {
 		return ErrNilResponseChannel
 	}
@@ -168,10 +204,15 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 	if req == nil {
 		return ErrNilRequest
 	}
-
 	defer close(responseChannel)
 	defer wg.Done()
+	return s.streamSSE(ctx, req, responseChannel)
+}
 
+// streamSSE performs the actual SSE round-trip, decoding events and sending them on
+// responseChannel. It does NOT close responseChannel; callers own the channel lifecycle.
+// The send is blocking (with ctx.Done() as an escape hatch), so events are never dropped.
+func (s *Client) streamSSE(ctx context.Context, req *CompletionRequest, responseChannel chan<- CompletionResponse) error { //nolint:gocognit,cyclop
 	requestBody, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
@@ -225,38 +266,40 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 		}
 
 		// Check if this is a data line and remove the "data: " prefix
-		if data, found := bytes.CutPrefix(line, []byte("data: ")); found { //nolint:nestif
-			data = bytes.TrimSpace(data)
+		data, found := bytes.CutPrefix(line, []byte("data: "))
+		if !found {
+			continue
+		}
+		data = bytes.TrimSpace(data)
 
-			// Check for [DONE] message
-			if bytes.Equal(data, []byte("[DONE]")) {
-				break
-			}
+		// Check for [DONE] message
+		if bytes.Equal(data, []byte("[DONE]")) {
+			break
+		}
 
-			// Try to parse the JSON data
-			var r CompletionResponse
-			if err := json.Unmarshal(data, &r); err != nil {
-				// If we have a buffer, try to append to it
-				if buffer.Len() > 0 {
-					buffer.Write(data)
-					if err := json.Unmarshal(buffer.Bytes(), &r); err != nil {
-						// If we still can't parse, continue collecting
-						continue
-					}
-					buffer.Reset()
-				} else {
-					// Start buffering incomplete JSON
-					buffer.Write(data)
+		// Try to parse the JSON data
+		var r CompletionResponse
+		if err := json.Unmarshal(data, &r); err != nil {
+			// If we have a buffer, try to append to it
+			if buffer.Len() > 0 {
+				buffer.Write(data)
+				if err := json.Unmarshal(buffer.Bytes(), &r); err != nil {
+					// If we still can't parse, continue collecting
 					continue
 				}
+				buffer.Reset()
+			} else {
+				// Start buffering incomplete JSON
+				buffer.Write(data)
+				continue
 			}
+		}
 
-			// Send the response to the channel
-			select {
-			case responseChannel <- r:
-			default:
-				// Don't block if the channel is full
-			}
+		// Blocking send: respects ctx cancellation, never drops events.
+		select {
+		case responseChannel <- r:
+		case <-ctx.Done():
+			return fmt.Errorf("stream cancelled: %w", ctx.Err())
 		}
 	}
 
