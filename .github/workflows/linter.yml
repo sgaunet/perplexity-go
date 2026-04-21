@@ -25,9 +25,9 @@ jobs:
         uses: jaxxstorm/action-install-gh-release@v3.0.0
         with:
           repo: golangci/golangci-lint
-          tag: v2.10.1
+          tag: v2.11.1
           cache: enable
-          binaries-location: golangci-lint-2.10.1-linux-amd64
+          binaries-location: golangci-lint-2.11.1-linux-amd64
 
       - name: Run linter
         shell: /usr/bin/bash {0}
