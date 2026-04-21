@@ -1,12 +1,12 @@
 // Package main demonstrates Server-Sent Events (SSE) streaming with the Perplexity API.
-// This example shows how to handle real-time streaming responses using goroutines,
-// channels, and proper synchronization with sync.WaitGroup.
+// This example shows how to handle real-time streaming responses with StreamCompletion:
+// the client call runs in its own goroutine, the main goroutine consumes the channel,
+// and an error channel hands the final error back to main.
 package main
 
 import (
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/sgaunet/perplexity-go/v2"
 )
@@ -42,30 +42,15 @@ func main() {
 	fmt.Println("Streaming response:")
 	fmt.Println("---")
 
-	// Set up synchronization
-	var wg sync.WaitGroup
-	chResponses := make(chan perplexity.CompletionResponse, 5) // Buffered channel for responses
+	chResponses := make(chan perplexity.CompletionResponse)
+	errCh := make(chan error, 1)
 	fullResponse := perplexity.CompletionResponse{}
 
-	// Signal channel to ensure goroutine has started
-	waitAfterGoroutine := make(chan struct{})
-
-	// Start goroutine to handle SSE streaming
-	wg.Add(1)
+	// Run the streaming call in its own goroutine. StreamCompletion closes the
+	// channel before returning, so the range loop below exits cleanly.
 	go func() {
-		// Signal that goroutine has started
-		waitAfterGoroutine <- struct{}{}
-
-		// Send SSE request (this will stream responses to the channel)
-		err := client.SendSSEHTTPRequest(&wg, req, chResponses)
-		if err != nil {
-			fmt.Printf("\nError during streaming: %v\n", err)
-			os.Exit(1)
-		}
+		errCh <- client.StreamCompletion(req, chResponses)
 	}()
-
-	// Wait for goroutine to start
-	<-waitAfterGoroutine
 
 	// Process streaming responses as they arrive
 	tokenCount := 0
@@ -85,8 +70,10 @@ func main() {
 		tokenCount++
 	}
 
-	// Wait for all goroutines to complete
-	wg.Wait()
+	if err := <-errCh; err != nil {
+		fmt.Printf("\nError during streaming: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Println("\n---")
 	fmt.Printf("Streaming completed. Received %d response chunks.\n", tokenCount)
