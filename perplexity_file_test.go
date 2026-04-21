@@ -2,6 +2,7 @@ package perplexity_test
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,6 +86,8 @@ func TestValidateFileSize(t *testing.T) {
 func TestValidateFileURL(t *testing.T) {
 	processor := perplexity.NewFileProcessor()
 
+	payload := base64.StdEncoding.EncodeToString([]byte("file bytes"))
+
 	tests := []struct {
 		name    string
 		url     string
@@ -98,6 +101,27 @@ func TestValidateFileURL(t *testing.T) {
 		{"invalid URL", "not-a-url", true, perplexity.ErrFileURLNotHTTPS},
 		{"no host", "https://", true, perplexity.ErrFileURLInvalid},
 		{"ftp protocol", "ftp://example.com/file.pdf", true, perplexity.ErrFileURLNotHTTPS},
+
+		// Valid data URIs for each supported format.
+		{"valid data URI pdf", "data:application/pdf;base64," + payload, false, nil},
+		{"valid data URI doc", "data:application/msword;base64," + payload, false, nil},
+		{"valid data URI docx",
+			"data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64," + payload,
+			false, nil},
+		{"valid data URI txt", "data:text/plain;base64," + payload, false, nil},
+		{"valid data URI rtf (application/rtf)", "data:application/rtf;base64," + payload, false, nil},
+		{"valid data URI rtf (text/rtf)", "data:text/rtf;base64," + payload, false, nil},
+		{"valid data URI mixed case mime", "data:APPLICATION/PDF;base64," + payload, false, nil},
+
+		// Unsupported data URI mimes.
+		{"data URI unsupported mime", "data:application/json;base64," + payload, true, perplexity.ErrFileFormatNotSupported},
+		{"data URI image mime", "data:image/png;base64," + payload, true, perplexity.ErrFileFormatNotSupported},
+
+		// Malformed data URIs.
+		{"data URI empty payload", "data:application/pdf;base64,", true, perplexity.ErrFileDataURIMalformed},
+		{"data URI empty mime", "data:;base64,YWJj", true, perplexity.ErrFileDataURIMalformed},
+		{"data URI missing separator", "data:application/pdf,YWJj", true, perplexity.ErrFileDataURIMalformed},
+		{"data URI invalid base64", "data:application/pdf;base64,!!!not-base64!!!", true, perplexity.ErrFileDataURIMalformed},
 	}
 
 	for _, tt := range tests {
@@ -113,6 +137,16 @@ func TestValidateFileURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateFileURLOversizedDataURI(t *testing.T) {
+	processor := perplexity.NewFileProcessor()
+
+	oversized := make([]byte, perplexity.MaxFileSizeBytes+1)
+	uri := "data:application/pdf;base64," + base64.StdEncoding.EncodeToString(oversized)
+	err := processor.ValidateFileURL(uri)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, perplexity.ErrFileTooLarge)
 }
 
 func TestEncodeFileFromPath(t *testing.T) {
@@ -223,4 +257,41 @@ func TestSupportedFileFormats(t *testing.T) {
 		assert.Contains(t, formats, "rtf")
 		assert.Len(t, formats, 5)
 	})
+}
+
+// TestValidateRequestWithLocalImageFile reproduces the bug report:
+// NewImageFileContent produces a data URI, and req.Validate() must accept it.
+// SearchRecencyFilter is explicitly cleared because NewCompletionRequest defaults it to "month",
+// which is (separately) rejected by validateImageCompatibility — unrelated to this fix.
+func TestValidateRequestWithLocalImageFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "local.jpg")
+	require.NoError(t, os.WriteFile(imgPath, []byte("fake-jpeg-bytes"), 0600))
+
+	msgs := perplexity.NewMessages()
+	require.NoError(t, msgs.AddUserMessageWithImageFile("describe this", imgPath))
+
+	req := perplexity.NewCompletionRequest(
+		perplexity.WithMessagesFromMessages(&msgs),
+		perplexity.WithModel("sonar-pro"),
+		perplexity.WithSearchRecencyFilter(""),
+	)
+	assert.NoError(t, req.Validate())
+}
+
+// TestValidateRequestWithLocalFile reproduces the analogous file-path bug:
+// NewFileFileContent produces a data URI and req.Validate() must accept it.
+func TestValidateRequestWithLocalFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "report.pdf")
+	require.NoError(t, os.WriteFile(filePath, []byte("%PDF-1.4\nfake"), 0600))
+
+	msgs := perplexity.NewMessages()
+	require.NoError(t, msgs.AddUserMessageWithFileFromPath("summarize", filePath))
+
+	req := perplexity.NewCompletionRequest(
+		perplexity.WithMessagesFromMessages(&msgs),
+		perplexity.WithModel("sonar-pro"),
+	)
+	assert.NoError(t, req.Validate())
 }
