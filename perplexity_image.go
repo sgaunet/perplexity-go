@@ -166,7 +166,7 @@ func (p *ImageProcessor) CheckImageURLAccessibility(ctx context.Context, imageUR
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is validated as HTTPS before this call
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("image URL not accessible: %w", err)
 	}

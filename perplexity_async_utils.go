@@ -66,9 +66,7 @@ func (s *Client) WaitForAsyncJobWithContext(ctx context.Context, jobID string, o
 	}
 
 	ctx, cancel := s.setupTimeoutContext(ctx, opts)
-	if cancel != nil {
-		defer cancel()
-	}
+	defer cancel()
 
 	return s.pollJobUntilCompletion(ctx, jobID, opts)
 }
@@ -104,9 +102,7 @@ func (s *Client) WaitForAsyncJobWithProgress(ctx context.Context, jobID string, 
 	}
 
 	ctx, cancel := s.setupTimeoutContext(ctx, opts)
-	if cancel != nil {
-		defer cancel()
-	}
+	defer cancel()
 	interval := opts.InitialInterval
 
 	for {
@@ -144,11 +140,12 @@ func (s *Client) validateJobIDAndOptions(jobID string, opts **AsyncPollingOption
 }
 
 // setupTimeoutContext creates a timeout context if MaxWaitTime is set.
+// The returned cancel function is always non-nil; the caller is responsible for calling it.
 func (s *Client) setupTimeoutContext(ctx context.Context, opts *AsyncPollingOptions) (context.Context, context.CancelFunc) {
 	if opts.MaxWaitTime > 0 {
-		return context.WithTimeout(ctx, opts.MaxWaitTime)
+		return context.WithTimeout(ctx, opts.MaxWaitTime) //nolint:gosec // caller defers cancel()
 	}
-	return ctx, nil
+	return context.WithCancel(ctx) //nolint:gosec // caller defers cancel()
 }
 
 // checkContextDone checks if the context is done and returns appropriate error.

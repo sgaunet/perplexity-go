@@ -121,7 +121,7 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
+	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -209,6 +209,194 @@ func (s *Client) SendSSEHTTPRequestWithContext(ctx context.Context, wg *sync.Wai
 	return s.streamSSE(ctx, req, responseChannel)
 }
 
+// CreateAsyncJob creates a new async job for long-running Sonar Deep Research tasks.
+func (s *Client) CreateAsyncJob(req *AsyncJobRequest) (*AsyncJobResponse, error) {
+	return s.CreateAsyncJobWithContext(context.Background(), req)
+}
+
+// CreateAsyncJobWithContext creates a new async job with the given context.
+func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobRequest) (*AsyncJobResponse, error) {
+	if err := s.validateAsyncJobRequest(req); err != nil {
+		return nil, err
+	}
+
+	httpReq, err := s.prepareAsyncJobRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	return s.handleAsyncJobResponse(resp)
+}
+
+// GetAsyncJob retrieves the status and result of an async job by ID.
+func (s *Client) GetAsyncJob(jobID string) (*AsyncJobResponse, error) {
+	return s.GetAsyncJobWithContext(context.Background(), jobID)
+}
+
+// GetAsyncJobWithContext retrieves the status and result of an async job by ID with the given context.
+func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*AsyncJobResponse, error) {
+	if jobID == "" {
+		return nil, ErrJobIDEmpty
+	}
+
+	url := fmt.Sprintf("%s/%s", s.asyncEndpoint, jobID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrAsyncJobNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// ListAsyncJobs retrieves a list of async jobs with optional pagination.
+func (s *Client) ListAsyncJobs(limit, offset int) (*AsyncJobListResponse, error) {
+	return s.ListAsyncJobsWithContext(context.Background(), limit, offset)
+}
+
+// ListAsyncJobsWithContext retrieves a list of async jobs with the given context and optional pagination.
+func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int) (*AsyncJobListResponse, error) {
+	if limit <= 0 {
+		limit = 20 // Default limit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	url := fmt.Sprintf("%s?limit=%d&offset=%d", s.asyncEndpoint, limit, offset)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result AsyncJobListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
+// SendSearchRequest sends a search request to the Perplexity Search API.
+// The Search API provides direct access to Perplexity's real-time web index
+// without the generative LLM layer, returning raw ranked search results.
+func (s *Client) SendSearchRequest(req *SearchRequest) (*SearchResponse, error) {
+	return s.SendSearchRequestWithContext(context.Background(), req)
+}
+
+// SendSearchRequestWithContext sends a search request to the Perplexity Search API with the given context.
+func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRequest) (*SearchResponse, error) {
+	if req == nil {
+		return nil, ErrNilRequest
+	}
+
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.searchEndpoint, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check return status code
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
+		}
+		return nil, ParseErrorMessage(body)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result SearchResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
+	}
+
+	return &result, nil
+}
+
 // streamSSE performs the actual SSE round-trip, decoding events and sending them on
 // responseChannel. It does NOT close responseChannel; callers own the channel lifecycle.
 // The send is blocking (with ctx.Done() as an escape hatch), so events are never dropped.
@@ -229,7 +417,7 @@ func (s *Client) streamSSE(ctx context.Context, req *CompletionRequest, response
 	httpReq.Header.Set("Cache-Control", "no-cache")
 	httpReq.Header.Set("Connection", "keep-alive")
 
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
+	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -304,194 +492,6 @@ func (s *Client) streamSSE(ctx context.Context, req *CompletionRequest, response
 	}
 
 	return nil
-}
-
-// CreateAsyncJob creates a new async job for long-running Sonar Deep Research tasks.
-func (s *Client) CreateAsyncJob(req *AsyncJobRequest) (*AsyncJobResponse, error) {
-	return s.CreateAsyncJobWithContext(context.Background(), req)
-}
-
-// CreateAsyncJobWithContext creates a new async job with the given context.
-func (s *Client) CreateAsyncJobWithContext(ctx context.Context, req *AsyncJobRequest) (*AsyncJobResponse, error) {
-	if err := s.validateAsyncJobRequest(req); err != nil {
-		return nil, err
-	}
-
-	httpReq, err := s.prepareAsyncJobRequest(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return s.handleAsyncJobResponse(resp)
-}
-
-// GetAsyncJob retrieves the status and result of an async job by ID.
-func (s *Client) GetAsyncJob(jobID string) (*AsyncJobResponse, error) {
-	return s.GetAsyncJobWithContext(context.Background(), jobID)
-}
-
-// GetAsyncJobWithContext retrieves the status and result of an async job by ID with the given context.
-func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*AsyncJobResponse, error) {
-	if jobID == "" {
-		return nil, ErrJobIDEmpty
-	}
-
-	url := fmt.Sprintf("%s/%s", s.asyncEndpoint, jobID)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
-
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check return status code
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrAsyncJobNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
-		}
-		return nil, ParseErrorMessage(body)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var result AsyncJobResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
-	}
-
-	return &result, nil
-}
-
-// ListAsyncJobs retrieves a list of async jobs with optional pagination.
-func (s *Client) ListAsyncJobs(limit, offset int) (*AsyncJobListResponse, error) {
-	return s.ListAsyncJobsWithContext(context.Background(), limit, offset)
-}
-
-// ListAsyncJobsWithContext retrieves a list of async jobs with the given context and optional pagination.
-func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int) (*AsyncJobListResponse, error) {
-	if limit <= 0 {
-		limit = 20 // Default limit
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
-	url := fmt.Sprintf("%s?limit=%d&offset=%d", s.asyncEndpoint, limit, offset)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
-
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check return status code
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
-		}
-		return nil, ParseErrorMessage(body)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var result AsyncJobListResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
-	}
-
-	return &result, nil
-}
-
-// SendSearchRequest sends a search request to the Perplexity Search API.
-// The Search API provides direct access to Perplexity's real-time web index
-// without the generative LLM layer, returning raw ranked search results.
-func (s *Client) SendSearchRequest(req *SearchRequest) (*SearchResponse, error) {
-	return s.SendSearchRequestWithContext(context.Background(), req)
-}
-
-// SendSearchRequestWithContext sends a search request to the Perplexity Search API with the given context.
-func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRequest) (*SearchResponse, error) {
-	if req == nil {
-		return nil, ErrNilRequest
-	}
-
-	requestBody, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.searchEndpoint, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(httpReq) //nolint:gosec // endpoint is a hardcoded constant or explicitly set by the caller
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check return status code
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
-		}
-		return nil, ParseErrorMessage(body)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var result SearchResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %w - body response=%s", err, string(body))
-	}
-
-	return &result, nil
 }
 
 // validateAsyncJobRequest validates the async job request.
