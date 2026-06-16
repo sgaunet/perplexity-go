@@ -3,7 +3,7 @@ module github.com/sgaunet/perplexity-go/v2
 go 1.25.11
 
 require (
-	github.com/go-playground/validator/v10 v10.30.2
+	github.com/go-playground/validator/v10 v10.30.3
 	github.com/stretchr/testify v1.11.1
 )
 
