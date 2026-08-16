@@ -12,12 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # setup go environment
-      - name: Set up Go
-        uses: actions/setup-go@v7
+      # Toolchain (Go, task, golangci-lint, ...) is pinned in mise.toml
+      - uses: jdx/mise-action@v4
         with:
-          go-version-file: 'go.mod'
-  
+          install: true
+          cache: true
       - name: coverage
         id: coverage
         run: |

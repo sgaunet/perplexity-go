@@ -11,24 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: jdx/mise-action@v4
         with:
-          go-version-file: 'go.mod'
-
-      - name: Install task
-        uses: jaxxstorm/action-install-gh-release@v3.0.0
-        with:
-          repo: go-task/task
-          cache: enable
-          # tag: 
-      - name: Install golangci-lint
-        uses: jaxxstorm/action-install-gh-release@v3.0.0
-        with:
-          repo: golangci/golangci-lint
-          tag: v2.11.1
-          cache: enable
-          binaries-location: golangci-lint-2.11.1-linux-amd64
-
+          install: true
+          cache: true
       - name: Run linter
         shell: /usr/bin/bash {0}
         run: |

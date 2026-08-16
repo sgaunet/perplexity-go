@@ -25,3 +25,8 @@ tasks:
     cmds:
       - go generate ./...
       - golangci-lint run
+
+  vulncheck:
+    desc: "Scan dependencies for known vulnerabilities"
+    cmds:
+      - govulncheck ./...
