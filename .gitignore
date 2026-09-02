@@ -1,3 +1,4 @@
 /dist
 /.tasks
 /bin
+/govulncheck.sarif
