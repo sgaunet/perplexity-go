@@ -270,6 +270,10 @@ func TestSearchHTTPRequestCompliance(t *testing.T) {
 		assert.Equal(t, "application/json", contentType, "Content-Type must be application/json")
 	})
 
+	t.Run("integration header identifies perplexity-go", func(t *testing.T) {
+		assert.Equal(t, "perplexity-go", capturedRequest.Header.Get("X-Pplx-Integration"))
+	})
+
 	t.Run("request body is valid JSON", func(t *testing.T) {
 		var body map[string]interface{}
 		err := json.Unmarshal(capturedBody, &body)

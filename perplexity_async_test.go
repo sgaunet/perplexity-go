@@ -136,6 +136,7 @@ func TestCreateAsyncJob(t *testing.T) {
 			assert.Equal(t, "/async/chat/completions", r.URL.Path)
 			assert.Equal(t, "Bearer test-key", r.Header.Get("Authorization"))
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			assert.Equal(t, "perplexity-go", r.Header.Get("X-Pplx-Integration"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -199,6 +200,7 @@ func TestGetAsyncJob(t *testing.T) {
 			assert.Equal(t, http.MethodGet, r.Method)
 			assert.Equal(t, "/async/chat/completions/job_123", r.URL.Path)
 			assert.Equal(t, "Bearer test-key", r.Header.Get("Authorization"))
+			assert.Equal(t, "perplexity-go", r.Header.Get("X-Pplx-Integration"))
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(mockResponse)
@@ -264,6 +266,7 @@ func TestListAsyncJobs(t *testing.T) {
 			assert.Equal(t, http.MethodGet, r.Method)
 			assert.Equal(t, "/async/chat/completions", r.URL.Path)
 			assert.Equal(t, "limit=20&offset=0", r.URL.RawQuery)
+			assert.Equal(t, "perplexity-go", r.Header.Get("X-Pplx-Integration"))
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(mockResponse)
