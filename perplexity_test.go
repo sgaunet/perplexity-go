@@ -48,6 +48,7 @@ func TestGetCompletion(t *testing.T) {
 				assert.Equal(t, r.Method, http.MethodPost)
 				assert.Equal(t, r.Header.Get("Authorization"), "Bearer "+apiKey)
 				assert.Equal(t, r.Header.Get("Content-Type"), "application/json")
+				assert.Equal(t, r.Header.Get("X-Pplx-Integration"), "perplexity-go")
 				defer r.Body.Close()
 				b, err := io.ReadAll(r.Body)
 				assert.Nil(t, err)
@@ -128,6 +129,7 @@ func TestSendSSEHTTPRequest(t *testing.T) {
 				// Check the headers
 				assert.Equal(t, r.Method, http.MethodPost)
 				assert.Equal(t, r.Header.Get("Authorization"), "Bearer "+apiKey)
+				assert.Equal(t, r.Header.Get("X-Pplx-Integration"), "perplexity-go")
 				assert.Equal(t, r.Header.Get("Cache-Control"), "no-cache")
 				assert.Equal(t, r.Header.Get("Accept"), "text/event-stream")
 				assert.Equal(t, r.Header.Get("Connection"), "keep-alive")

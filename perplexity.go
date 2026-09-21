@@ -121,6 +121,7 @@ func (s *Client) SendCompletionRequestWithContext(ctx context.Context, req *Comp
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -252,6 +253,7 @@ func (s *Client) GetAsyncJobWithContext(ctx context.Context, jobID string) (*Asy
 	}
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -308,6 +310,7 @@ func (s *Client) ListAsyncJobsWithContext(ctx context.Context, limit, offset int
 	}
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -365,6 +368,7 @@ func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRe
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -413,6 +417,7 @@ func (s *Client) streamSSE(ctx context.Context, req *CompletionRequest, response
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 	httpReq.Header.Set("Accept", "text/event-stream")
 	httpReq.Header.Set("Cache-Control", "no-cache")
 	httpReq.Header.Set("Connection", "keep-alive")
@@ -519,6 +524,7 @@ func (s *Client) prepareAsyncJobRequest(ctx context.Context, req *AsyncJobReques
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Pplx-Integration", "perplexity-go")
 	return httpReq, nil
 }
 
