@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	perplexity "github.com/sgaunet/perplexity-go/v2"
 )
@@ -19,125 +22,138 @@ func main() {
 	// Create client
 	client := perplexity.NewClient(apiKey)
 
-	// Example 1: Simple search query
 	fmt.Println("=== Example 1: Simple Search ===")
 	simpleSearch(client)
 
-	fmt.Println("\n=== Example 2: Advanced Search with Options ===")
+	fmt.Println("\n=== Example 2: Advanced Search with Filters ===")
 	advancedSearch(client)
 
-	fmt.Println("\n=== Example 3: Multi-query Search ===")
+	fmt.Println("\n=== Example 3: Multi-query Fast Search ===")
 	multiQuerySearch(client)
+
+	fmt.Println("\n=== Example 4: Date Filters ===")
+	dateFilteredSearch(client)
 }
 
 func simpleSearch(client *perplexity.Client) {
-	// Create a simple search request
 	req := perplexity.NewSearchRequest("latest developments in quantum computing")
 
-	// Validate request
-	validator := perplexity.NewSearchRequestValidator()
-	if err := validator.ValidateSearchRequest(req); err != nil {
-		fmt.Printf("Validation error: %v\n", err)
-		return
-	}
-
-	// Send request
+	// The request is validated by the client before being sent
 	resp, err := client.SendSearchRequest(req)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		printError(err)
 		return
 	}
 
-	// Display results
-	fmt.Printf("Found %d results:\n", resp.GetResultCount())
+	fmt.Printf("Search %s found %d results:\n", resp.ID, resp.GetResultCount())
 	for i, result := range resp.GetResults() {
 		fmt.Printf("\n%d. %s\n", i+1, result.Title)
 		fmt.Printf("   URL: %s\n", result.URL)
 		if result.Snippet != nil {
-			fmt.Printf("   Snippet: %s\n", *result.Snippet)
+			fmt.Printf("   Snippet: %s\n", truncate(*result.Snippet, 200))
 		}
 		if result.Date != nil {
-			fmt.Printf("   Date: %s\n", *result.Date)
+			fmt.Printf("   Published: %s\n", *result.Date)
 		}
-		if result.Score != nil {
-			fmt.Printf("   Relevance Score: %.2f\n", *result.Score)
+		if result.LastUpdated != nil {
+			fmt.Printf("   Last updated: %s\n", *result.LastUpdated)
 		}
 	}
 }
 
 func advancedSearch(client *perplexity.Client) {
-	// Create search with options
-	// Note: Domain filters should be specific domains (e.g., "github.com")
-	// rather than wildcard patterns (e.g., "*.example.com")
+	// Domain filters are either an allowlist ("github.com", "example.com/blog", ".gov")
+	// or a denylist (every entry prefixed with "-"), never both.
 	req := perplexity.NewSearchRequest(
-		"best Go web frameworks 2025",
+		"best Go web frameworks",
 		perplexity.WithSearchMaxResults(10),
-		perplexity.WithSearchReturnImages(true),
-		perplexity.WithSearchReturnSnippets(true),
+		perplexity.WithSearchMaxTokensPerPage(1024),
 		perplexity.WithSearchCountry("US"),
-		perplexity.WithSearchDomains([]string{"golang.org", "github.com"}),
+		perplexity.WithSearchLanguageFilter([]string{"en"}),
+		perplexity.WithSearchDomains([]string{"-reddit.com", "-pinterest.com"}),
+		perplexity.WithSearchRecency(perplexity.SearchRecencyYear),
+		perplexity.WithSearchDisplayServerTime(true),
 	)
 
-	// Validate request
-	validator := perplexity.NewSearchRequestValidator()
-	if err := validator.ValidateSearchRequest(req); err != nil {
-		fmt.Printf("Validation error: %v\n", err)
-		return
-	}
-
-	// Send request
 	resp, err := client.SendSearchRequest(req)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		printError(err)
 		return
 	}
 
-	// Display results
+	if resp.ServerTime != nil {
+		fmt.Printf("Server time: %s\n", *resp.ServerTime)
+	}
 	fmt.Printf("Found %d results:\n", resp.GetResultCount())
 	for i, result := range resp.GetResults() {
-		fmt.Printf("\n%d. %s\n", i+1, result.String())
-		if result.Images != nil && len(*result.Images) > 0 {
-			fmt.Printf("   Images: %d\n", len(*result.Images))
-			for j, img := range *result.Images {
-				if j < 2 { // Show first 2 images
-					fmt.Printf("     - %s\n", img.String())
-				}
-			}
-		}
+		fmt.Printf("%d. %s\n", i+1, result.String())
 	}
 }
 
 func multiQuerySearch(client *perplexity.Client) {
-	// Create multi-query search request
+	// Up to 5 queries per request; billed as one request.
 	queries := []string{
 		"Go concurrency patterns",
 		"Go performance optimization",
-		"Go best practices 2025",
+		"Go best practices",
 	}
 
 	req := perplexity.NewSearchRequest(
 		queries,
+		perplexity.WithSearchType(perplexity.SearchTypeFast), // lower latency and cost
 		perplexity.WithSearchMaxResults(5),
 	)
 
-	// Validate request
-	validator := perplexity.NewSearchRequestValidator()
-	if err := validator.ValidateSearchRequest(req); err != nil {
-		fmt.Printf("Validation error: %v\n", err)
-		return
-	}
-
-	// Send request
 	resp, err := client.SendSearchRequest(req)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		printError(err)
 		return
 	}
 
-	// Display results
 	fmt.Printf("Found %d total results across %d queries:\n", resp.GetResultCount(), len(queries))
 	for i, result := range resp.GetResults() {
 		fmt.Printf("\n%d. %s\n", i+1, result.Title)
 		fmt.Printf("   %s\n", result.URL)
 	}
+}
+
+func dateFilteredSearch(client *perplexity.Client) {
+	// Date filters cannot be combined with a recency filter.
+	now := time.Now()
+	req := perplexity.NewSearchRequest(
+		"Go release notes",
+		perplexity.WithSearchMaxResults(5),
+		perplexity.WithSearchPublishedAfter(now.AddDate(-1, 0, 0)),
+		perplexity.WithSearchUpdatedBefore(now),
+	)
+
+	resp, err := client.SendSearchRequest(req)
+	if err != nil {
+		printError(err)
+		return
+	}
+
+	for i, result := range resp.GetResults() {
+		fmt.Printf("%d. %s\n", i+1, result.String())
+	}
+}
+
+func printError(err error) {
+	var respErr *perplexity.ResponseError
+	switch {
+	case errors.As(err, &respErr) && respErr.StatusCode == http.StatusTooManyRequests:
+		fmt.Printf("Rate limited, retry later: %v\n", err)
+	case errors.As(err, &respErr):
+		fmt.Printf("API error (HTTP %d): %v\n", respErr.StatusCode, err)
+	default:
+		fmt.Printf("Error: %v\n", err)
+	}
+}
+
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "..."
 }

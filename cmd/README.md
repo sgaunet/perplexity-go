@@ -42,6 +42,30 @@ Shows Server-Sent Events (SSE) streaming implementation:
 go run cmd/streaming-sse/main.go
 ```
 
+### 5. Search API (`search-example/`)
+Demonstrates the Search API (raw ranked web results, no LLM generation):
+- Simple, multi-query and Fast Search requests
+- Content extraction, country, language, domain, recency and date filters
+- Error handling with `ResponseError` status codes
+
+```bash
+go run cmd/search-example/main.go
+```
+
+### 6. Search Content Extraction (`search-max-tokens/`)
+Compares snippet sizes for different `max_tokens` budgets.
+
+```bash
+go run cmd/search-max-tokens/main.go
+```
+
+### 7. Language Control (`language-preference/`)
+Uses `language_preference` for chat completions and `search_language_filter` for the Search API.
+
+```bash
+go run cmd/language-preference/main.go
+```
+
 ## Prerequisites
 
 Before running any example, ensure you have:

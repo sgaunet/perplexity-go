@@ -64,3 +64,19 @@ func TestParseErrorMessage(t *testing.T) {
 		}
 	})
 }
+
+func TestParseHTTPErrorResponse(t *testing.T) {
+	t.Run("EmptyBodyFallsBackToStatusCode", func(t *testing.T) {
+		err := parseHTTPErrorResponse(503, nil)
+		if err.StatusCode != 503 || err.Error() != "unexpected status code 503" {
+			t.Fatalf("unexpected error: %+v (%q)", err, err.Error())
+		}
+	})
+
+	t.Run("JSONWithoutKnownKeysKeepsBody", func(t *testing.T) {
+		err := parseHTTPErrorResponse(400, []byte(`{"error":"Invalid API key"}`))
+		if err.Error() != `{"error":"Invalid API key"}` {
+			t.Fatalf("unexpected message: %q", err.Error())
+		}
+	})
+}

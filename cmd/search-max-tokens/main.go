@@ -1,5 +1,6 @@
 // Package main demonstrates the max_tokens parameter for the Search API.
-// This example shows how controlling max_tokens affects the length of search result snippets.
+// This example shows how controlling max_tokens (total budget across all results) affects
+// the length of search result snippets.
 package main
 
 import (
@@ -25,7 +26,6 @@ func main() {
 		"What is quantum computing?",
 		perplexity.WithSearchMaxResults(3),
 		perplexity.WithSearchMaxTokens(500),
-		perplexity.WithSearchReturnSnippets(true),
 	)
 
 	resp1, err := client.SendSearchRequest(req1)
@@ -57,7 +57,6 @@ func main() {
 		"What is quantum computing?",
 		perplexity.WithSearchMaxResults(3),
 		perplexity.WithSearchMaxTokens(1000),
-		perplexity.WithSearchReturnSnippets(true),
 	)
 
 	resp2, err := client.SendSearchRequest(req2)
@@ -88,7 +87,6 @@ func main() {
 	req3 := perplexity.NewSearchRequest(
 		"What is quantum computing?",
 		perplexity.WithSearchMaxResults(3),
-		perplexity.WithSearchReturnSnippets(true),
 	)
 
 	resp3, err := client.SendSearchRequest(req3)
@@ -130,10 +128,10 @@ Example usage:
    ./bin/search-max-tokens
 
 This example demonstrates:
-- How max_tokens controls the extraction length per page in Search API results
+- How max_tokens controls the total content extracted across all Search API results
 - Comparing snippet lengths between different max_tokens values (500, 1000, default)
 - The impact of max_tokens on result detail and token consumption
 
-Note: The max_tokens parameter controls how much content is extracted from each
-search result page, allowing you to balance between detail and token usage.
+Note: max_tokens is the total content budget across all results. Use
+WithSearchMaxTokensPerPage to cap the content extracted from each result page.
 */

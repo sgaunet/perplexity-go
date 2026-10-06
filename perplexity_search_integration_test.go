@@ -79,51 +79,71 @@ func TestSearchIntegration_WithMaxResults(t *testing.T) {
 	assert.LessOrEqual(t, len(resp.Results), maxResults, "Should not exceed max_results")
 }
 
-// TestSearchIntegration_WithReturnImages tests return_images parameter.
-func TestSearchIntegration_WithReturnImages(t *testing.T) {
-	apiKey := skipIfNoAPIKey(t)
-
-	client := NewClient(apiKey)
-	req := NewSearchRequest(
-		"beautiful landscapes photography",
-		WithSearchReturnImages(true),
-		WithSearchMaxResults(3),
-	)
-
-	resp, err := client.SendSearchRequest(req)
-	require.NoError(t, err, "Search with return_images should succeed")
-	require.NotNil(t, resp, "Response should not be nil")
-
-	// Note: Images are not guaranteed even with return_images=true
-	// Just verify the request succeeds
-	assert.NotEmpty(t, resp.Results, "Should return results")
-}
-
-// TestSearchIntegration_WithReturnSnippets tests return_snippets parameter.
-func TestSearchIntegration_WithReturnSnippets(t *testing.T) {
+// TestSearchIntegration_FastSearch tests search_type=fast.
+func TestSearchIntegration_FastSearch(t *testing.T) {
 	apiKey := skipIfNoAPIKey(t)
 
 	client := NewClient(apiKey)
 	req := NewSearchRequest(
 		"climate change solutions",
-		WithSearchReturnSnippets(true),
+		WithSearchType(SearchTypeFast),
 		WithSearchMaxResults(3),
 	)
 
 	resp, err := client.SendSearchRequest(req)
-	require.NoError(t, err, "Search with return_snippets should succeed")
+	require.NoError(t, err, "Fast search should succeed")
 	require.NotNil(t, resp, "Response should not be nil")
 	assert.NotEmpty(t, resp.Results, "Should return results")
+}
 
-	// Check if any results have snippets
-	hasSnippet := false
-	for _, result := range resp.Results {
-		if result.Snippet != nil && *result.Snippet != "" {
-			hasSnippet = true
-			break
-		}
-	}
-	t.Logf("Results with snippets: %v", hasSnippet)
+// TestSearchIntegration_ContentExtraction tests max_tokens and max_tokens_per_page.
+func TestSearchIntegration_ContentExtraction(t *testing.T) {
+	apiKey := skipIfNoAPIKey(t)
+
+	client := NewClient(apiKey)
+	req := NewSearchRequest(
+		"golang generics tutorial",
+		WithSearchMaxResults(3),
+		WithSearchMaxTokens(3000),
+		WithSearchMaxTokensPerPage(512),
+	)
+
+	resp, err := client.SendSearchRequest(req)
+	require.NoError(t, err, "Search with token limits should succeed")
+	require.NotNil(t, resp, "Response should not be nil")
+	assert.NotEmpty(t, resp.Results, "Should return results")
+}
+
+// TestSearchIntegration_LanguageAndTimeFilters tests search_language_filter, recency and date filters.
+func TestSearchIntegration_LanguageAndTimeFilters(t *testing.T) {
+	apiKey := skipIfNoAPIKey(t)
+
+	client := NewClient(apiKey)
+
+	t.Run("language and recency", func(t *testing.T) {
+		req := NewSearchRequest(
+			"actualités technologie",
+			WithSearchLanguageFilter([]string{"fr"}),
+			WithSearchRecency(SearchRecencyMonth),
+			WithSearchMaxResults(3),
+		)
+		resp, err := client.SendSearchRequest(req)
+		require.NoError(t, err)
+		t.Logf("Returned %d results", len(resp.Results))
+	})
+
+	t.Run("date filters", func(t *testing.T) {
+		now := time.Now()
+		req := NewSearchRequest(
+			"artificial intelligence",
+			WithSearchPublishedAfter(now.AddDate(-1, 0, 0)),
+			WithSearchUpdatedBefore(now),
+			WithSearchMaxResults(3),
+		)
+		resp, err := client.SendSearchRequest(req)
+		require.NoError(t, err)
+		t.Logf("Returned %d results", len(resp.Results))
+	})
 }
 
 // TestSearchIntegration_WithCountry tests country parameter.
@@ -171,11 +191,13 @@ func TestSearchIntegration_AllOptions(t *testing.T) {
 	// Use specific domains without wildcards
 	req := NewSearchRequest(
 		"machine learning papers",
+		WithSearchType(SearchTypeWeb),
 		WithSearchMaxResults(3),
-		WithSearchReturnImages(false),
-		WithSearchReturnSnippets(true),
+		WithSearchMaxTokensPerPage(1024),
 		WithSearchCountry("US"),
-		WithSearchDomains([]string{"arxiv.org", "github.com"}),
+		WithSearchLanguageFilter([]string{"en"}),
+		WithSearchDomains([]string{"-reddit.com", "-pinterest.com"}),
+		WithSearchDisplayServerTime(true),
 	)
 
 	resp, err := client.SendSearchRequest(req)
@@ -349,13 +371,13 @@ func TestSearchIntegration_ValidateRealResponseParsing(t *testing.T) {
 	req := NewSearchRequest(
 		"artificial intelligence trends 2024",
 		WithSearchMaxResults(5),
-		WithSearchReturnSnippets(true),
 	)
 
 	resp, err := client.SendSearchRequest(req)
 	require.NoError(t, err, "Request should succeed")
 	require.NotNil(t, resp, "Response should not be nil")
 	require.NotEmpty(t, resp.Results, "Should have results")
+	assert.NotEmpty(t, resp.ID, "Response should have an id")
 
 	// Validate each result field
 	for i, result := range resp.Results {
@@ -369,15 +391,8 @@ func TestSearchIntegration_ValidateRealResponseParsing(t *testing.T) {
 		if result.Date != nil {
 			t.Logf("Result %d has date: %s", i, *result.Date)
 		}
-		if result.Score != nil {
-			assert.GreaterOrEqual(t, *result.Score, 0.0, "Score should be non-negative")
-			t.Logf("Result %d has score: %.3f", i, *result.Score)
-		}
-		if result.Images != nil && len(*result.Images) > 0 {
-			t.Logf("Result %d has %d images", i, len(*result.Images))
-			for j, img := range *result.Images {
-				assert.NotEmpty(t, img.URL, "Image %d should have URL", j)
-			}
+		if result.LastUpdated != nil {
+			t.Logf("Result %d last updated: %s", i, *result.LastUpdated)
 		}
 	}
 }
@@ -388,15 +403,10 @@ func TestSearchIntegration_EmptyQuery(t *testing.T) {
 
 	client := NewClient(apiKey)
 
-	// Validator should catch this before sending to API
-	validator := NewSearchRequestValidator()
+	// The client validates the request before sending it to the API
 	req := NewSearchRequest("")
-	err := validator.ValidateSearchRequest(req)
-	require.Error(t, err, "Empty query should fail validation")
-
-	// Even if we bypass validation, API should reject
-	_, err = client.SendSearchRequest(req)
-	require.Error(t, err, "Empty query should be rejected")
+	_, err := client.SendSearchRequest(req)
+	require.ErrorIs(t, err, ErrSearchQueryStringEmpty, "Empty query should be rejected")
 }
 
 // TestSearchIntegration_VeryLongQuery tests handling of very long queries.

@@ -281,3 +281,42 @@ func TestSearchResponseMarshal(t *testing.T) {
 		assert.Equal(t, 0.85, firstResult["score"])
 	})
 }
+
+func TestSearchResponseCurrentSpecFields(t *testing.T) {
+	data := `{
+		"id": "e38104d5-6bd7-4d82-bc4e-0a21179d1f77",
+		"server_time": "0.190s",
+		"results": [
+			{
+				"title": "Example",
+				"url": "https://example.com",
+				"snippet": "content",
+				"date": "2025-03-01",
+				"last_updated": "2025-04-02"
+			},
+			{
+				"title": "No dates",
+				"url": "https://example.org",
+				"snippet": "",
+				"date": null,
+				"last_updated": null
+			}
+		]
+	}`
+
+	var resp SearchResponse
+	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+
+	assert.Equal(t, "e38104d5-6bd7-4d82-bc4e-0a21179d1f77", resp.ID)
+	require.NotNil(t, resp.ServerTime)
+	assert.Equal(t, "0.190s", *resp.ServerTime)
+	require.Len(t, resp.Results, 2)
+	require.NotNil(t, resp.Results[0].LastUpdated)
+	assert.Equal(t, "2025-04-02", *resp.Results[0].LastUpdated)
+	assert.Nil(t, resp.Results[1].Date)
+	assert.Nil(t, resp.Results[1].LastUpdated)
+
+	var nullServerTime SearchResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"x","results":[],"server_time":null}`), &nullServerTime))
+	assert.Nil(t, nullServerTime.ServerTime)
+}

@@ -1,7 +1,10 @@
 package perplexity
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -402,7 +405,6 @@ func TestIsValidDomainPattern(t *testing.T) {
 func TestNewSearchRequestValidator(t *testing.T) {
 	validator := NewSearchRequestValidator()
 	require.NotNil(t, validator)
-	require.NotNil(t, validator.validator)
 }
 
 // TestQueryEdgeCases tests special characters, unicode, and very long strings in queries.
@@ -496,69 +498,50 @@ func TestQueryEdgeCases(t *testing.T) {
 func TestLargeQueryArrays(t *testing.T) {
 	validator := NewSearchRequestValidator()
 
-	t.Run("array with 10 queries", func(t *testing.T) {
-		queries := make([]string, 10)
-		for i := 0; i < 10; i++ {
-			queries[i] = "query " + string(rune('A'+i))
-		}
+	t.Run("array with max queries", func(t *testing.T) {
+		queries := []string{"query A", "query B", "query C", "query D", "query E"}
 		req := NewSearchRequest(queries)
 		err := validator.ValidateSearchRequest(req)
 		assert.NoError(t, err)
 	})
 
-	t.Run("array with 50 queries", func(t *testing.T) {
-		queries := make([]string, 50)
-		for i := 0; i < 50; i++ {
-			queries[i] = "test query number " + string(rune('0'+i%10))
-		}
+	t.Run("array above max queries", func(t *testing.T) {
+		queries := []string{"q1", "q2", "q3", "q4", "q5", "q6"}
 		req := NewSearchRequest(queries)
 		err := validator.ValidateSearchRequest(req)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, ErrSearchQueryArrayTooLong)
 	})
 
-	t.Run("array with 100 queries", func(t *testing.T) {
-		queries := make([]string, 100)
-		for i := 0; i < 100; i++ {
-			queries[i] = "query item"
-		}
+	t.Run("array with one empty element", func(t *testing.T) {
+		queries := []string{"valid", "valid", "", "valid"}
 		req := NewSearchRequest(queries)
 		err := validator.ValidateSearchRequest(req)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, ErrSearchQueryArrayElementEmpty)
+		assert.Contains(t, err.Error(), "index 2")
 	})
 
-	t.Run("large array with one empty element", func(t *testing.T) {
-		queries := make([]string, 20)
-		for i := 0; i < 20; i++ {
-			if i == 10 {
-				queries[i] = "" // Empty element at index 10
-			} else {
-				queries[i] = "valid query"
-			}
-		}
-		req := NewSearchRequest(queries)
-		err := validator.ValidateSearchRequest(req)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "index 10")
-	})
-
-	t.Run("large array with mixed unicode and ascii", func(t *testing.T) {
+	t.Run("array with mixed unicode and ascii", func(t *testing.T) {
 		queries := []string{
 			"english query",
 			"中文查询",
-			"日本語クエリ",
-			"한국어 쿼리",
 			"запрос на русском",
-			"consulta en español",
-			"requête en français",
-			"deutsche Abfrage",
-			"consulta em português",
-			"ricerca in italiano",
 			"query with emoji 🔍",
 			"mixed 中英文 query",
 		}
 		req := NewSearchRequest(queries)
 		err := validator.ValidateSearchRequest(req)
 		assert.NoError(t, err)
+	})
+
+	t.Run("array decoded from JSON ([]any)", func(t *testing.T) {
+		var req SearchRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"query":["a","b"]}`), &req))
+		assert.NoError(t, validator.ValidateSearchRequest(&req))
+	})
+
+	t.Run("[]any with non-string element", func(t *testing.T) {
+		req := NewSearchRequest([]any{"a", 1})
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchQueryInvalidType)
 	})
 }
 
@@ -635,7 +618,6 @@ func TestDomainFilterEdgeCases(t *testing.T) {
 			"my#domain.net",
 			"site$.com",
 			"test%.org",
-			"example .com", // even with space, if it has a dot
 		}
 		for _, domain := range domains {
 			req := NewSearchRequest("test", WithSearchDomains([]string{domain}))
@@ -661,14 +643,56 @@ func TestDomainFilterEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("large domain filter list", func(t *testing.T) {
-		domains := make([]string, 50)
-		for i := 0; i < 50; i++ {
-			domains[i] = "example" + string(rune('a'+i%26)) + ".com"
+	t.Run("domain filter list at max size", func(t *testing.T) {
+		domains := make([]string, SearchMaxDomainFilterEntries)
+		for i := range domains {
+			domains[i] = "example" + string(rune('a'+i)) + ".com"
 		}
 		req := NewSearchRequest("test", WithSearchDomains(domains))
 		err := validator.ValidateSearchRequest(req)
 		assert.NoError(t, err)
+	})
+
+	t.Run("domain filter list above max size", func(t *testing.T) {
+		domains := make([]string, SearchMaxDomainFilterEntries+1)
+		for i := range domains {
+			domains[i] = "example" + string(rune('a'+i)) + ".com"
+		}
+		req := NewSearchRequest("test", WithSearchDomains(domains))
+		err := validator.ValidateSearchRequest(req)
+		assert.ErrorIs(t, err, ErrSearchDomainFilterTooLong)
+	})
+
+	t.Run("denylist, paths and TLDs", func(t *testing.T) {
+		valid := [][]string{
+			{"-reddit.com", "-pinterest.com"},
+			{"-reddit.com/r/all"},
+			{"-.gov"},
+			{"example.com/blog", ".gov", ".edu"},
+		}
+		for _, domains := range valid {
+			req := NewSearchRequest("test", WithSearchDomains(domains))
+			assert.NoError(t, validator.ValidateSearchRequest(req), "domains %v should be valid", domains)
+		}
+	})
+
+	t.Run("mixing allowlist and denylist", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchDomains([]string{"example.com", "-reddit.com"}))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchDomainFilterMixedModes)
+	})
+
+	t.Run("invalid entries", func(t *testing.T) {
+		invalid := []string{
+			"https://example.com",
+			"example .com",
+			"-",
+			"/path",
+			strings.Repeat("a", SearchMaxDomainFilterEntryLength-3) + ".com",
+		}
+		for _, domain := range invalid {
+			req := NewSearchRequest("test", WithSearchDomains([]string{domain}))
+			assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchDomainFilterEntryInvalid, "domain %q", domain)
+		}
 	})
 
 	t.Run("single character domain components", func(t *testing.T) {
@@ -692,22 +716,29 @@ func TestMaxResultsBoundaries(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("max_results with large positive value", func(t *testing.T) {
-		req := NewSearchRequest("test", WithSearchMaxResults(1000))
-		err := validator.ValidateSearchRequest(req)
-		assert.NoError(t, err)
+	t.Run("max_results at web limit", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(SearchMaxResultsLimit))
+		assert.NoError(t, validator.ValidateSearchRequest(req))
 	})
 
-	t.Run("max_results with very large positive value", func(t *testing.T) {
-		req := NewSearchRequest("test", WithSearchMaxResults(999999))
-		err := validator.ValidateSearchRequest(req)
-		assert.NoError(t, err)
+	t.Run("max_results above web limit", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxResults(SearchMaxResultsLimit+1))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchMaxResultsTooLarge)
 	})
 
-	t.Run("max_results with maximum int value", func(t *testing.T) {
-		req := NewSearchRequest("test", WithSearchMaxResults(2147483647)) // max int32
-		err := validator.ValidateSearchRequest(req)
-		assert.NoError(t, err)
+	t.Run("max_results above web limit with fast search", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchType(SearchTypeFast), WithSearchMaxResults(30))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchMaxResultsTooLarge)
+	})
+
+	t.Run("max_results at people limit", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchType(SearchTypePeople), WithSearchMaxResults(SearchMaxResultsPeopleLimit))
+		assert.NoError(t, validator.ValidateSearchRequest(req))
+	})
+
+	t.Run("max_results above people limit", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchType(SearchTypePeople), WithSearchMaxResults(SearchMaxResultsPeopleLimit+1))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchMaxResultsTooLarge)
 	})
 
 	t.Run("max_results with -1", func(t *testing.T) {
@@ -722,5 +753,119 @@ func TestMaxResultsBoundaries(t *testing.T) {
 		err := validator.ValidateSearchRequest(req)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "positive integer")
+	})
+}
+
+func TestSearchRequestValidator_SearchType(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	for _, st := range []string{SearchTypeWeb, SearchTypeFast, SearchTypePeople} {
+		req := NewSearchRequest("test", WithSearchType(st))
+		assert.NoError(t, validator.ValidateSearchRequest(req), "search_type %s", st)
+	}
+
+	req := NewSearchRequest("test", WithSearchType("academic"))
+	assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchTypeInvalid)
+}
+
+func TestSearchRequestValidator_TokenLimits(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("valid values", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(SearchMaxTokensLimit), WithSearchMaxTokensPerPage(4096))
+		assert.NoError(t, validator.ValidateSearchRequest(req))
+	})
+
+	t.Run("max_tokens too large", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokens(SearchMaxTokensLimit+1))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchTokensTooLarge)
+	})
+
+	t.Run("max_tokens_per_page zero", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokensPerPage(0))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchMaxTokensPerPageInvalid)
+	})
+
+	t.Run("max_tokens_per_page too large", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchMaxTokensPerPage(SearchMaxTokensLimit+1))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchTokensTooLarge)
+	})
+}
+
+func TestSearchRequestValidator_LanguageFilter(t *testing.T) {
+	validator := NewSearchRequestValidator()
+
+	t.Run("valid codes", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchLanguageFilter([]string{"en", "fr", "de"}))
+		assert.NoError(t, validator.ValidateSearchRequest(req))
+	})
+
+	t.Run("invalid codes", func(t *testing.T) {
+		for _, code := range []string{"EN", "eng", "en-US", "", "e"} {
+			req := NewSearchRequest("test", WithSearchLanguageFilter([]string{code}))
+			assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchLanguageFilterInvalid, "code %q", code)
+		}
+	})
+
+	t.Run("too many codes", func(t *testing.T) {
+		codes := make([]string, SearchMaxLanguageFilterEntries+1)
+		for i := range codes {
+			codes[i] = "en"
+		}
+		req := NewSearchRequest("test", WithSearchLanguageFilter(codes))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchLanguageFilterTooLong)
+	})
+}
+
+func TestSearchRequestValidator_TimeFilters(t *testing.T) {
+	validator := NewSearchRequestValidator()
+	jan := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	mar := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
+
+	t.Run("valid recency values", func(t *testing.T) {
+		for _, r := range []string{SearchRecencyHour, SearchRecencyDay, SearchRecencyWeek, SearchRecencyMonth, SearchRecencyYear} {
+			req := NewSearchRequest("test", WithSearchRecency(r))
+			assert.NoError(t, validator.ValidateSearchRequest(req), "recency %s", r)
+		}
+	})
+
+	t.Run("invalid recency", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchRecency("decade"))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchRecencyInvalid)
+	})
+
+	t.Run("valid date filters", func(t *testing.T) {
+		req := NewSearchRequest("test",
+			WithSearchPublishedAfter(jan), WithSearchPublishedBefore(mar),
+			WithSearchUpdatedAfter(jan), WithSearchUpdatedBefore(mar),
+		)
+		assert.NoError(t, validator.ValidateSearchRequest(req))
+	})
+
+	t.Run("zero-padded date accepted", func(t *testing.T) {
+		req := NewSearchRequest("test")
+		req.SearchAfterDateFilter = strPtr("03/01/2025")
+		assert.NoError(t, validator.ValidateSearchRequest(req))
+	})
+
+	t.Run("invalid date format", func(t *testing.T) {
+		for _, d := range []string{"2025-03-01", "13/01/2025", "", "yesterday"} {
+			req := NewSearchRequest("test")
+			req.LastUpdatedBeforeFilter = strPtr(d)
+			assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchDateFilterInvalid, "date %q", d)
+		}
+	})
+
+	t.Run("inverted date range", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchPublishedAfter(mar), WithSearchPublishedBefore(jan))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchDateRangeInvalid)
+
+		req = NewSearchRequest("test", WithSearchUpdatedAfter(mar), WithSearchUpdatedBefore(jan))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchDateRangeInvalid)
+	})
+
+	t.Run("recency combined with date filter", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchRecency(SearchRecencyWeek), WithSearchUpdatedAfter(jan))
+		assert.ErrorIs(t, validator.ValidateSearchRequest(req), ErrSearchRecencyWithDateFilters)
 	})
 }

@@ -6,14 +6,15 @@ This example demonstrates how to use the Perplexity Search API client to perform
 
 The Perplexity Search API provides direct access to Perplexity's real-time web index without the generative LLM layer, returning raw ranked search results with structured snippets.
 
-This example showcases three different search scenarios:
+This example showcases four search scenarios:
 1. **Simple Search** - Basic single query search
-2. **Advanced Search** - Search with options (max results, images, snippets, domain filters)
-3. **Multi-Query Search** - Execute multiple queries in a single request
+2. **Advanced Search** - Content extraction, country, language, domain denylist, recency and server time
+3. **Multi-Query Fast Search** - Several queries in one request with `search_type: "fast"`
+4. **Date Filters** - Publication and last-updated date filters
 
 ## Prerequisites
 
-You need a Perplexity API key with Search API access. The Search API is priced at **$5 per 1,000 requests** (separate from chat completion pricing).
+You need a Perplexity API key with Search API access. The Search API is priced at **$5 per 1,000 requests** (**$1 per 1,000** for Fast Search), separate from chat completion pricing.
 
 ## Building
 
@@ -49,146 +50,124 @@ PPLX_API_KEY=your_api_key ./bin/search-example
 
 ### Example 1: Simple Search
 
-Performs a basic search query with default options:
-
 ```go
 req := perplexity.NewSearchRequest("latest developments in quantum computing")
+resp, err := client.SendSearchRequest(req) // validated before sending
 ```
 
-**Features demonstrated:**
-- Basic request creation
-- Request validation with `SearchRequestValidator`
-- Sending requests with `SendSearchRequest()`
-- Accessing result fields (Title, URL, Snippet, Date, Score)
+Prints the search `ID` and, for each result, title, URL, snippet, publication date and last-updated date.
 
-**Output includes:**
-- Result count
-- For each result: Title, URL, snippet (if available), date, relevance score
-
-### Example 2: Advanced Search with Options
-
-Shows how to use search options for more control:
+### Example 2: Advanced Search with Filters
 
 ```go
 req := perplexity.NewSearchRequest(
-    "best Go web frameworks 2025",
+    "best Go web frameworks",
     perplexity.WithSearchMaxResults(10),
-    perplexity.WithSearchReturnImages(true),
-    perplexity.WithSearchReturnSnippets(true),
+    perplexity.WithSearchMaxTokensPerPage(1024),
     perplexity.WithSearchCountry("US"),
-    perplexity.WithSearchDomains([]string{"golang.org", "github.com"}),
+    perplexity.WithSearchLanguageFilter([]string{"en"}),
+    perplexity.WithSearchDomains([]string{"-reddit.com", "-pinterest.com"}),
+    perplexity.WithSearchRecency(perplexity.SearchRecencyYear),
+    perplexity.WithSearchDisplayServerTime(true),
 )
 ```
 
-**Options demonstrated:**
-- `WithSearchMaxResults(10)` - Limit number of results
-- `WithSearchReturnImages(true)` - Include images in results
-- `WithSearchReturnSnippets(true)` - Include text snippets
-- `WithSearchCountry("US")` - Country-specific results
-- `WithSearchDomains([]string{"golang.org", "github.com"})` - Filter by domains
-
-**Note:** Domain filters must be specific domains (e.g., "github.com"), not wildcard patterns (e.g., "*.com").
-
-**Output includes:**
-- All fields from Example 1
-- Image URLs with dimensions (when available)
-- Formatted with `result.String()` and `img.String()` methods
-
-### Example 3: Multi-Query Search
-
-Demonstrates searching multiple queries in a single request:
+### Example 3: Multi-Query Fast Search
 
 ```go
-queries := []string{
-    "Go concurrency patterns",
-    "Go performance optimization",
-    "Go best practices 2025",
-}
-req := perplexity.NewSearchRequest(queries, perplexity.WithSearchMaxResults(5))
+queries := []string{"Go concurrency patterns", "Go performance optimization", "Go best practices"}
+req := perplexity.NewSearchRequest(
+    queries,
+    perplexity.WithSearchType(perplexity.SearchTypeFast),
+    perplexity.WithSearchMaxResults(5),
+)
 ```
 
-**Features demonstrated:**
-- Passing multiple queries as `[]string`
-- Results aggregated across all queries
-- More efficient than individual requests
+Up to 5 queries per request. A multi-query request is billed as one request but consumes one
+rate-limit unit per query.
 
-**Output includes:**
-- Total result count across all queries
-- Simplified view (title + URL only)
+### Example 4: Date Filters
+
+```go
+now := time.Now()
+req := perplexity.NewSearchRequest(
+    "Go release notes",
+    perplexity.WithSearchPublishedAfter(now.AddDate(-1, 0, 0)),
+    perplexity.WithSearchUpdatedBefore(now),
+)
+```
+
+Date filters cannot be combined with `WithSearchRecency`.
 
 ## Available Search Options
 
-| Option | Description | Type |
-|--------|-------------|------|
-| `WithSearchMaxResults(n)` | Maximum number of results to return | `int` |
-| `WithSearchReturnImages(bool)` | Include images in results | `bool` |
-| `WithSearchReturnSnippets(bool)` | Include text snippets | `bool` |
-| `WithSearchCountry(code)` | Country code for localized results (e.g., "US", "GB") | `string` |
-| `WithSearchDomains(domains)` | Filter results to specific domains | `[]string` |
+| Option | JSON parameter | Description |
+|--------|----------------|-------------|
+| `WithSearchType(t)` | `search_type` | `SearchTypeWeb` (default), `SearchTypeFast`, `SearchTypePeople` |
+| `WithSearchMaxResults(n)` | `max_results` | 1-20 (up to 50 for people search) |
+| `WithSearchMaxTokens(n)` | `max_tokens` | Total content tokens across all results |
+| `WithSearchMaxTokensPerPage(n)` | `max_tokens_per_page` | Content tokens extracted per page |
+| `WithSearchCountry(code)` | `country` | ISO 3166-1 alpha-2 code (e.g. "US", "GB") |
+| `WithSearchLanguageFilter(codes)` | `search_language_filter` | ISO 639-1 codes (e.g. "en", "fr") |
+| `WithSearchDomains(domains)` | `search_domain_filter` | Allowlist or denylist (`-` prefix), up to 20 entries |
+| `WithSearchRecency(r)` | `search_recency_filter` | hour, day, week, month, year |
+| `WithSearchPublishedAfter/Before(t)` | `search_after_date_filter` / `search_before_date_filter` | Publication date |
+| `WithSearchUpdatedAfter/Before(t)` | `last_updated_after_filter` / `last_updated_before_filter` | Last-modified date |
+| `WithSearchDisplayServerTime(b)` | `display_server_time` | Include `server_time` in the response |
+
+Deprecated (ignored by the API): `WithSearchReturnImages`, `WithSearchReturnSnippets`, `WithSearchLanguagePreference`.
 
 ## Response Fields
 
-Each `SearchResultItem` contains:
+`SearchResponse`:
+- `ID` - Unique identifier of the search
+- `Results` - Ranked results
+- `ServerTime` - Processing time, when `display_server_time` is set
 
-- `Title` - Result title (required)
-- `URL` - Result URL (required)
-- `Snippet` - Text snippet from the page (optional)
-- `Date` - Publication/modification date (optional)
-- `Score` - Relevance score (optional)
-- `Images` - Array of related images (optional)
-  - `URL` - Image URL
-  - `Width` - Image width in pixels (optional)
-  - `Height` - Image height in pixels (optional)
+Each `SearchResultItem` contains:
+- `Title` - Page title
+- `URL` - Page URL
+- `Snippet` - Extracted page content (size driven by `max_tokens` / `max_tokens_per_page`)
+- `Date` - Publication date, `YYYY-MM-DD` (optional)
+- `LastUpdated` - Last-updated date, `YYYY-MM-DD` (optional)
+
+`Score` and `Images` are deprecated and never populated by the API.
 
 ## Error Handling
 
-The example demonstrates proper error handling:
+`SendSearchRequest` validates the request before sending it and returns the validation error
+(e.g. `ErrSearchQueryArrayTooLong`, `ErrSearchDomainFilterMixedModes`, `ErrSearchRecencyWithDateFilters`).
 
-1. **Environment variable check** - Exits if `PPLX_API_KEY` not set
-2. **Request validation** - Validates before sending with `validator.ValidateSearchRequest()`
-3. **API errors** - Checks `client.SendSearchRequest()` return value
-
-Common errors:
-- `ErrUnauthorized` - Invalid or missing API key
-- `ErrBadRequest` - Invalid request parameters (e.g., empty query, invalid domains)
+API errors:
+- `ErrUnauthorized` - Invalid or missing API key (HTTP 401)
+- `*ResponseError` - Any other API error, with `StatusCode` and, for HTTP 422, the validation `Detail`
 - Network errors - Connection issues, timeouts
 
-## Validation
-
-The example uses `SearchRequestValidator` to validate requests before sending:
-
 ```go
-validator := perplexity.NewSearchRequestValidator()
-if err := validator.ValidateSearchRequest(req); err != nil {
-    fmt.Printf("Validation error: %v\n", err)
-    return
+var respErr *perplexity.ResponseError
+if errors.As(err, &respErr) && respErr.StatusCode == http.StatusTooManyRequests {
+    // rate limited: retry with exponential backoff and jitter
 }
 ```
 
-**Validation rules:**
-- Query cannot be empty
-- Domain filters must be valid domain names
-- Max results must be positive (if specified)
-
 ## Tips
 
-1. **Domain Filtering**: Use specific domains without wildcards
-   - ✅ Good: `"github.com"`, `"golang.org"`
-   - ❌ Bad: `"*.github.com"`, `"*.org"`
+1. **Domain Filtering**: use domains without protocol or `www.`
+   - Allowlist: `"github.com"`, `"example.com/blog"`, `".gov"`
+   - Denylist: `"-reddit.com"`, `"-reddit.com/r/all"`
+   - Do not mix allowlist and denylist entries in the same request
 
-2. **Rate Limiting**: The Search API has rate limits. For production use, implement:
-   - Exponential backoff for retries
-   - Request queuing
-   - Concurrent request limiting (~3-5 recommended)
+2. **Rate Limiting**: the Search API allows 50 query units per second (burst 50) for all tiers.
+   Each query of a multi-query request counts as one unit. Retry 429 responses with exponential backoff.
 
-3. **Context Support**: Use `SendSearchRequestWithContext()` for timeout control:
+3. **Fast Search**: use `SearchTypeFast` for agent loops and high-volume workloads, `SearchTypeWeb` for hard queries.
+
+4. **Context Support**: use `SendSearchRequestWithContext()` for timeout control:
    ```go
    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
    defer cancel()
    resp, err := client.SendSearchRequestWithContext(ctx, req)
    ```
-
-4. **Thread Safety**: The client and response objects are safe for concurrent use
 
 ## Comparison with Chat Completions
 
@@ -196,12 +175,12 @@ if err := validator.ValidateSearchRequest(req); err != nil {
 |---------|------------|------------------|
 | **Purpose** | Raw web search results | AI-generated responses |
 | **Response** | Ranked list of URLs with snippets | Natural language text |
-| **Pricing** | $5 per 1K requests | Variable by model |
+| **Pricing** | $5 per 1K requests ($1 for Fast Search) | Variable by model |
 | **Latency** | Lower (no generation) | Higher (includes generation) |
 | **Use Case** | Research, data gathering | Q&A, summarization, analysis |
 
 ## See Also
 
-- [Perplexity Search API Documentation](https://docs.perplexity.ai/reference/post_search)
+- [Perplexity Search API Documentation](https://docs.perplexity.ai/api-reference/search-post)
 - [Main Library Documentation](../../README.md)
 - [GoDoc](https://godoc.org/github.com/sgaunet/perplexity-go/v2)

@@ -1,4 +1,5 @@
-// Package main demonstrates the language_preference parameter for both Chat and Search APIs.
+// Package main demonstrates language control for the Chat API (language_preference)
+// and the Search API (search_language_filter).
 // This example shows how to request responses in different languages using ISO 639-1 codes.
 package main
 
@@ -61,13 +62,12 @@ func main() {
 	fmt.Printf("Question: What is the capital of France?\n")
 	fmt.Printf("Response (English): %s\n", content2)
 
-	// Test 3: Search with Spanish language preference
-	fmt.Println("\n=== Test 3: Search with language_preference='es' ===")
+	// Test 3: Search restricted to Spanish results
+	fmt.Println("\n=== Test 3: Search with search_language_filter=['es'] ===")
 	searchReq := perplexity.NewSearchRequest(
 		"latest news technology",
 		perplexity.WithSearchMaxResults(3),
-		perplexity.WithSearchLanguagePreference("es"),
-		perplexity.WithSearchReturnSnippets(true),
+		perplexity.WithSearchLanguageFilter([]string{"es"}),
 	)
 
 	searchResp, err := client.SendSearchRequest(searchReq)
@@ -88,13 +88,12 @@ func main() {
 		fmt.Println()
 	}
 
-	// Test 4: Search with Japanese language preference
-	fmt.Println("=== Test 4: Search with language_preference='ja' ===")
+	// Test 4: Search restricted to Japanese results
+	fmt.Println("=== Test 4: Search with search_language_filter=['ja'] ===")
 	searchReq2 := perplexity.NewSearchRequest(
 		"latest technology news",
 		perplexity.WithSearchMaxResults(3),
-		perplexity.WithSearchLanguagePreference("ja"),
-		perplexity.WithSearchReturnSnippets(true),
+		perplexity.WithSearchLanguageFilter([]string{"ja"}),
 	)
 
 	searchResp2, err := client.SendSearchRequest(searchReq2)
@@ -132,7 +131,7 @@ Example usage:
 
 This example demonstrates:
 - Setting language preference for Chat Completions API (French, English)
-- Setting language preference for Search API (Spanish, Japanese)
+- Restricting Search API results by language with search_language_filter (Spanish, Japanese)
 - Valid ISO 639-1 language codes (2-letter codes)
 - Valid ISO 639-1 with country codes (e.g., "en-US", "fr-CA")
 
@@ -140,5 +139,6 @@ Supported language preference formats:
 - Two-letter language code: "en", "fr", "es", "ja", "de", etc.
 - Language code with country: "en-US", "en-GB", "fr-CA", "es-MX", etc.
 
-Note: Language preference works with sonar models for both Chat and Search APIs.
+Note: language_preference applies to Chat completions (sonar models). The Search API
+uses search_language_filter (ISO 639-1 codes only, e.g. "es") to restrict results.
 */

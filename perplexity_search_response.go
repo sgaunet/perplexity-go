@@ -8,21 +8,37 @@ import (
 
 // SearchResponse represents a response from the Perplexity Search API.
 type SearchResponse struct {
+	// ID is the unique identifier of the search request.
+	ID string `json:"id,omitempty"`
+	// Results are the ranked search results.
 	Results []SearchResultItem `json:"results"`
+	// ServerTime is the server-side processing time (e.g. "0.190s"), returned when the
+	// request sets display_server_time.
+	ServerTime *string `json:"server_time,omitempty"`
 }
 
 // SearchResultItem represents a single search result from the Search API.
 // This is distinct from SearchResult which is used in chat completion responses.
 type SearchResultItem struct {
-	Title   string             `json:"title"`
-	URL     string             `json:"url"`
-	Snippet *string            `json:"snippet,omitempty"`
-	Date    *string            `json:"date,omitempty"`
-	Score   *float64           `json:"score,omitempty"`
-	Images  *[]SearchImageItem `json:"images,omitempty"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
+	// Snippet is the page content extracted for this result. Its size is driven by
+	// max_tokens and max_tokens_per_page.
+	Snippet *string `json:"snippet,omitempty"`
+	// Date is the publication date of the page (YYYY-MM-DD).
+	Date *string `json:"date,omitempty"`
+	// LastUpdated is the date the page was last updated (YYYY-MM-DD).
+	LastUpdated *string `json:"last_updated,omitempty"`
+
+	// Deprecated: score is not part of the Search API specification and is never returned.
+	Score *float64 `json:"score,omitempty"`
+	// Deprecated: images are not part of the Search API specification and are never returned.
+	Images *[]SearchImageItem `json:"images,omitempty"`
 }
 
 // SearchImageItem represents an image in a search result.
+//
+// Deprecated: the Search API does not return images.
 type SearchImageItem struct {
 	URL    string `json:"url"`
 	Width  *int   `json:"width,omitempty"`

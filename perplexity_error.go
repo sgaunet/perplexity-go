@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // ResponseError is an error response object for the Perplexity API.
@@ -14,14 +15,59 @@ type ResponseError struct {
 		Type    string `json:"type"`
 		Code    int    `json:"code"`
 	} `json:"error"`
+	// Detail holds validation errors returned with HTTP 422 ({"detail": [...]}).
+	Detail []ValidationErrorDetail `json:"detail,omitempty"`
+	// StatusCode is the HTTP status code of the response, when known.
+	StatusCode int `json:"-"`
+}
+
+// ValidationErrorDetail is a single entry of a 422 validation error response.
+type ValidationErrorDetail struct {
+	Loc  []any  `json:"loc"`
+	Msg  string `json:"msg"`
+	Type string `json:"type"`
 }
 
 // Error returns the error message of the ResponseError.
+// When no message is available, it falls back to the validation details or the HTTP status code.
 func (r *ResponseError) Error() string {
 	if r == nil {
 		return ""
 	}
-	return r.ErrorData.Message
+	if r.ErrorData.Message != "" {
+		return r.ErrorData.Message
+	}
+	if len(r.Detail) > 0 {
+		msgs := make([]string, 0, len(r.Detail))
+		for _, d := range r.Detail {
+			loc := make([]string, 0, len(d.Loc))
+			for _, l := range d.Loc {
+				loc = append(loc, fmt.Sprint(l))
+			}
+			msgs = append(msgs, fmt.Sprintf("%s: %s", strings.Join(loc, "."), d.Msg))
+		}
+		return "validation error: " + strings.Join(msgs, "; ")
+	}
+	if r.StatusCode != 0 {
+		return fmt.Sprintf("unexpected status code %d", r.StatusCode)
+	}
+	return ""
+}
+
+// parseHTTPErrorResponse builds a *ResponseError from an HTTP error response, keeping the status code.
+// It understands both {"error": {...}} and 422 {"detail": [...]} bodies, and falls back to the raw
+// body as message when the body is not in a known JSON format.
+func parseHTTPErrorResponse(statusCode int, data []byte) *ResponseError {
+	errResp := &ResponseError{}
+	if err := json.Unmarshal(data, errResp); err != nil {
+		errResp = &ResponseError{}
+		errResp.ErrorData.Message = strings.TrimSpace(string(data))
+	}
+	errResp.StatusCode = statusCode
+	if errResp.ErrorData.Message == "" && len(errResp.Detail) == 0 && len(data) > 0 {
+		errResp.ErrorData.Message = strings.TrimSpace(string(data))
+	}
+	return errResp
 }
 
 // ParseErrorMessage unmarshals a []byte representing an API error response
