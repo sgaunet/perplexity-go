@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,6 +119,46 @@ func TestSearchRequestStructureCompliance(t *testing.T) {
 		assert.NotContains(t, unmarshaled, "return_snippets")
 		assert.NotContains(t, unmarshaled, "country")
 		assert.NotContains(t, unmarshaled, "search_domain_filter")
+		assert.Len(t, unmarshaled, 1)
+	})
+
+	t.Run("all current spec fields use correct JSON names", func(t *testing.T) {
+		day := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
+		req := NewSearchRequest(
+			"test",
+			WithSearchType(SearchTypeFast),
+			WithSearchMaxResults(5),
+			WithSearchMaxTokens(10000),
+			WithSearchMaxTokensPerPage(2048),
+			WithSearchCountry("US"),
+			WithSearchDomains([]string{"example.com"}),
+			WithSearchLanguageFilter([]string{"en"}),
+			WithSearchPublishedAfter(day),
+			WithSearchPublishedBefore(day),
+			WithSearchUpdatedAfter(day),
+			WithSearchUpdatedBefore(day),
+			WithSearchDisplayServerTime(true),
+		)
+
+		data, err := json.Marshal(req)
+		require.NoError(t, err)
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(data, &m))
+
+		assert.Equal(t, "fast", m["search_type"])
+		assert.InDelta(t, 10000, m["max_tokens"], 0)
+		assert.InDelta(t, 2048, m["max_tokens_per_page"], 0)
+		assert.Equal(t, []any{"en"}, m["search_language_filter"])
+		assert.Equal(t, "3/1/2025", m["search_after_date_filter"])
+		assert.Equal(t, "3/1/2025", m["search_before_date_filter"])
+		assert.Equal(t, "3/1/2025", m["last_updated_after_filter"])
+		assert.Equal(t, "3/1/2025", m["last_updated_before_filter"])
+		assert.Equal(t, true, m["display_server_time"])
+
+		recency, err := json.Marshal(NewSearchRequest("test", WithSearchRecency(SearchRecencyWeek)))
+		require.NoError(t, err)
+		assert.Contains(t, string(recency), `"search_recency_filter":"week"`)
 	})
 }
 
@@ -356,9 +397,9 @@ func TestSearchErrorResponseCompliance(t *testing.T) {
 		assert.Equal(t, "Server encountered an error", respErr.Error())
 	})
 
-	t.Run("non-JSON error response is handled gracefully", func(t *testing.T) {
+	t.Run("non-JSON error response keeps body and status code", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadGateway)
 			_, _ = w.Write([]byte("Not JSON"))
 		}))
 		defer server.Close()
@@ -366,11 +407,63 @@ func TestSearchErrorResponseCompliance(t *testing.T) {
 		client := NewClient("test-key")
 		client.SetSearchEndpoint(server.URL)
 
-		req := NewSearchRequest("test")
-		_, err := client.SendSearchRequest(req)
-		require.Error(t, err)
-		// Error should still be returned even if not valid JSON
-		assert.NotNil(t, err)
+		_, err := client.SendSearchRequest(NewSearchRequest("test"))
+		var respErr *ResponseError
+		require.ErrorAs(t, err, &respErr)
+		assert.Equal(t, http.StatusBadGateway, respErr.StatusCode)
+		assert.Equal(t, "Not JSON", respErr.Error())
+	})
+
+	t.Run("422 validation error is parsed", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write([]byte(`{"detail":[{"loc":["body","max_results"],"msg":"Input should be less than or equal to 20","type":"less_than_equal"}]}`))
+		}))
+		defer server.Close()
+
+		client := NewClient("test-key")
+		client.SetSearchEndpoint(server.URL)
+
+		_, err := client.SendSearchRequest(NewSearchRequest("test"))
+		var respErr *ResponseError
+		require.ErrorAs(t, err, &respErr)
+		assert.Equal(t, http.StatusUnprocessableEntity, respErr.StatusCode)
+		require.Len(t, respErr.Detail, 1)
+		assert.Equal(t, "less_than_equal", respErr.Detail[0].Type)
+		assert.Equal(t, "validation error: body.max_results: Input should be less than or equal to 20", respErr.Error())
+	})
+
+	t.Run("429 rate limit exposes status code", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":{"message":"Rate limit exceeded","type":"rate_limit","code":429}}`))
+		}))
+		defer server.Close()
+
+		client := NewClient("test-key")
+		client.SetSearchEndpoint(server.URL)
+
+		_, err := client.SendSearchRequest(NewSearchRequest("test"))
+		var respErr *ResponseError
+		require.ErrorAs(t, err, &respErr)
+		assert.Equal(t, http.StatusTooManyRequests, respErr.StatusCode)
+		assert.Equal(t, "Rate limit exceeded", respErr.Error())
+	})
+
+	t.Run("invalid request is rejected before sending", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Handler should not be called for an invalid request")
+		}))
+		defer server.Close()
+
+		client := NewClient("test-key")
+		client.SetSearchEndpoint(server.URL)
+
+		_, err := client.SendSearchRequest(NewSearchRequest(""))
+		assert.ErrorIs(t, err, ErrSearchQueryStringEmpty)
+
+		_, err = client.SendSearchRequest(nil)
+		assert.ErrorIs(t, err, ErrNilRequest)
 	})
 }
 

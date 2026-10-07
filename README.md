@@ -79,15 +79,17 @@ The Perplexity Search API provides direct access to Perplexity's real-time web i
 ### Features
 
 * Direct web search without AI generation layer
-* Single query or multi-query search support
-* Structured results with titles, URLs, snippets, and scores
-* Optional image results
-* Domain filtering
-* Country-specific results
+* Single query or multi-query search (up to 5 queries per request)
+* Search types: `web` (default), `fast` (lower latency and cost) and `people`
+* Structured results with titles, URLs, snippets, publication and last-updated dates
+* Content extraction control (`max_tokens`, `max_tokens_per_page`)
+* Domain allowlist/denylist filtering (domains, paths, TLDs)
+* Language, country, recency and date filters
+* Client-side validation of API limits before sending
 
 ### Pricing
 
-The Search API is priced at **$5 per 1,000 requests** (as of 2024), separate from chat completion pricing.
+The Search API is priced at **$5 per 1,000 requests** (`search_type: "web"`) and **$1 per 1,000 requests** for Fast Search (`search_type: "fast"`), separate from chat completion pricing. A multi-query request is billed as one request. See the [official pricing](https://docs.perplexity.ai/docs/getting-started/pricing).
 
 ### Basic Search Usage
 
@@ -127,23 +129,41 @@ func main() {
 ### Advanced Search Options
 
 ```go
-// Search with all options
 req := perplexity.NewSearchRequest(
     "machine learning papers",
-    perplexity.WithSearchMaxResults(10),
-    perplexity.WithSearchReturnImages(true),
-    perplexity.WithSearchReturnSnippets(true),
+    perplexity.WithSearchType(perplexity.SearchTypeFast),
+    perplexity.WithSearchMaxResults(10),                   // 1-20 (up to 50 for people search)
+    perplexity.WithSearchMaxTokensPerPage(1024),           // content extracted per page
     perplexity.WithSearchCountry("US"),
+    perplexity.WithSearchLanguageFilter([]string{"en"}),   // ISO 639-1 codes
     perplexity.WithSearchDomains([]string{"arxiv.org", "github.com"}),
+    perplexity.WithSearchRecency(perplexity.SearchRecencyMonth),
 )
 
 resp, err := client.SendSearchRequest(req)
+fmt.Println(resp.ID)
 ```
+
+| Option | JSON parameter | Notes |
+|--------|----------------|-------|
+| `WithSearchType` | `search_type` | `SearchTypeWeb` (default), `SearchTypeFast`, `SearchTypePeople` |
+| `WithSearchMaxResults` | `max_results` | 1-20, up to 50 with `SearchTypePeople` |
+| `WithSearchMaxTokens` | `max_tokens` | Total content tokens across all results (1-1,000,000) |
+| `WithSearchMaxTokensPerPage` | `max_tokens_per_page` | Content tokens per result page (1-1,000,000) |
+| `WithSearchCountry` | `country` | ISO 3166-1 alpha-2 code (`"US"`) |
+| `WithSearchLanguageFilter` | `search_language_filter` | ISO 639-1 codes (`"en"`, `"fr"`) |
+| `WithSearchDomains` | `search_domain_filter` | Up to 20 entries. Allowlist (`"example.com"`, `"example.com/blog"`, `".gov"`) or denylist (`"-reddit.com"`), not both |
+| `WithSearchRecency` | `search_recency_filter` | `hour`, `day`, `week`, `month`, `year`; cannot be combined with date filters |
+| `WithSearchPublishedAfter` / `WithSearchPublishedBefore` | `search_after_date_filter` / `search_before_date_filter` | Publication date (`time.Time`, sent as MM/DD/YYYY) |
+| `WithSearchUpdatedAfter` / `WithSearchUpdatedBefore` | `last_updated_after_filter` / `last_updated_before_filter` | Last-modified date |
+| `WithSearchDisplayServerTime` | `display_server_time` | Adds `server_time` (processing time) to the response |
+
+`WithSearchReturnImages`, `WithSearchReturnSnippets` and `WithSearchLanguagePreference` are deprecated: these parameters are not part of the Search API and are ignored by the API. Likewise, the `Score` and `Images` result fields are never populated.
 
 ### Multi-Query Search
 
 ```go
-// Search multiple queries at once
+// Search up to 5 queries at once (billed as one request)
 queries := []string{
     "Go programming language",
     "Rust programming language",
@@ -154,14 +174,26 @@ req := perplexity.NewSearchRequest(queries)
 resp, err := client.SendSearchRequest(req)
 ```
 
-### Request Validation
+### Request Validation and Errors
+
+`SendSearchRequest` validates the request before sending it (query count, limits, domain filter
+format, date formats, incompatible filters). The validator can also be used on its own:
 
 ```go
-// Validate search request before sending
 validator := perplexity.NewSearchRequestValidator()
 if err := validator.ValidateSearchRequest(req); err != nil {
     fmt.Printf("Validation error: %v\n", err)
     return
+}
+```
+
+API errors are returned as `*perplexity.ResponseError` with the HTTP status code
+(`ErrUnauthorized` for 401). 422 validation details are available in `Detail`:
+
+```go
+var respErr *perplexity.ResponseError
+if errors.As(err, &respErr) && respErr.StatusCode == http.StatusTooManyRequests {
+    // rate limited (50 queries/s): retry with exponential backoff
 }
 ```
 
@@ -184,7 +216,7 @@ resp, err := client.SendSearchRequestWithContext(ctx, req)
 | **Purpose** | Raw web search results | AI-generated responses |
 | **Response** | Ranked list of URLs with snippets | Natural language text |
 | **Use Case** | Research, data gathering | Q&A, summarization, analysis |
-| **Pricing** | $5 per 1K requests | Variable by model |
+| **Pricing** | $5 per 1K requests ($1 for Fast Search) | Variable by model |
 | **Latency** | Lower (no generation) | Higher (includes generation) |
 
 ## Documentation

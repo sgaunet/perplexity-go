@@ -3,6 +3,7 @@ package perplexity
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -242,5 +243,51 @@ func TestSearchRequestOptions(t *testing.T) {
 		domains := []string{"example.com"}
 		req := NewSearchRequest("test", WithSearchDomains(domains))
 		assert.Equal(t, domains, *req.SearchDomainFilter)
+	})
+}
+
+func TestSearchRequestNewOptions(t *testing.T) {
+	t.Run("empty strings leave fields unset", func(t *testing.T) {
+		req := NewSearchRequest("test", WithSearchCountry(""), WithSearchType(""), WithSearchRecency(""))
+		assert.Nil(t, req.Country)
+		assert.Nil(t, req.SearchType)
+		assert.Nil(t, req.SearchRecencyFilter)
+
+		data, err := json.Marshal(req)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"query":"test"}`, string(data))
+	})
+
+	t.Run("slices are copied", func(t *testing.T) {
+		domains := []string{"example.com"}
+		langs := []string{"en"}
+		req := NewSearchRequest("test", WithSearchDomains(domains), WithSearchLanguageFilter(langs))
+		domains[0] = "changed.com"
+		langs[0] = "fr"
+		assert.Equal(t, []string{"example.com"}, *req.SearchDomainFilter)
+		assert.Equal(t, []string{"en"}, *req.SearchLanguageFilter)
+	})
+
+	t.Run("date options use MM/DD/YYYY", func(t *testing.T) {
+		day := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+		req := NewSearchRequest("test",
+			WithSearchPublishedAfter(day), WithSearchPublishedBefore(day),
+			WithSearchUpdatedAfter(day), WithSearchUpdatedBefore(day),
+		)
+		for _, f := range []*string{req.SearchAfterDateFilter, req.SearchBeforeDateFilter, req.LastUpdatedAfterFilter, req.LastUpdatedBeforeFilter} {
+			require.NotNil(t, f)
+			assert.Equal(t, "12/31/2024", *f)
+		}
+	})
+
+	t.Run("numeric and boolean options", func(t *testing.T) {
+		req := NewSearchRequest("test",
+			WithSearchType(SearchTypePeople),
+			WithSearchMaxTokensPerPage(512),
+			WithSearchDisplayServerTime(true),
+		)
+		assert.Equal(t, SearchTypePeople, *req.SearchType)
+		assert.Equal(t, 512, *req.MaxTokensPerPage)
+		assert.True(t, *req.DisplayServerTime)
 	})
 }

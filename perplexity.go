@@ -351,9 +351,12 @@ func (s *Client) SendSearchRequest(req *SearchRequest) (*SearchResponse, error) 
 }
 
 // SendSearchRequestWithContext sends a search request to the Perplexity Search API with the given context.
+// The request is validated with SearchRequestValidator before being sent.
+// API errors are returned as *ResponseError carrying the HTTP status code
+// (e.g. 422 validation errors, 429 rate limiting), except 401 which returns ErrUnauthorized.
 func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRequest) (*SearchResponse, error) {
-	if req == nil {
-		return nil, ErrNilRequest
+	if err := NewSearchRequestValidator().ValidateSearchRequest(req); err != nil {
+		return nil, err
 	}
 
 	requestBody, err := json.Marshal(req)
@@ -385,7 +388,7 @@ func (s *Client) SendSearchRequestWithContext(ctx context.Context, req *SearchRe
 		if err != nil {
 			return nil, fmt.Errorf("unexpected status code (%d) and cannot read response: %w", resp.StatusCode, err)
 		}
-		return nil, ParseErrorMessage(body)
+		return nil, parseHTTPErrorResponse(resp.StatusCode, body)
 	}
 
 	body, err := io.ReadAll(resp.Body)
